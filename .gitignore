@@ -30,3 +30,6 @@ desktop.ini
 # 贴图对比预览（中间产物）
 output/tex/*compare*.*
 output/tex/*preview*.*
+
+# 本地上传辅助脚本（非站点内容）
+推送到GitHub.bat
