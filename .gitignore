@@ -34,3 +34,6 @@ output/tex/*preview*.*
 # 本地上传辅助脚本（非站点内容）
 推送到GitHub.bat
 GitHub上传指南.md
+
+# 本地 GitHub 推送辅助脚本（非站点内容）
+scripts/push_to_github.py
