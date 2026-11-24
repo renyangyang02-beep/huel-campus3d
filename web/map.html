@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>河南财经政法大学 · 郑东校区实景导览</title>
+<style>
+  :root{
+    --bg:#eef3f8; --panel:rgba(255,255,255,.95); --line:#d7e2ee;
+    --text:#1b2a3a; --muted:#5d7086; --blue:#1f5f9e; --gold:#d97706;
+    --shadow:0 10px 36px rgba(24,48,78,.18);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+    font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif}
+  .panel{background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:14px;backdrop-filter:blur(10px)}
+
+  /* 顶部 */
+  header{position:fixed;left:18px;top:16px;z-index:20;padding:13px 17px;max-width:min(500px,calc(100vw - 36px))}
+  header h1{margin:0;font-size:18px;letter-spacing:.3px}
+  header p{margin:6px 0 0;font-size:11.5px;color:var(--muted);line-height:1.65}
+  .badge{display:inline-block;background:#e8f1fb;color:var(--blue);border-radius:20px;padding:2px 9px;font-size:10.5px;margin-right:5px}
+
+  /* 模式切换 */
+  #modes{position:fixed;left:50%;top:16px;transform:translateX(-50%);z-index:20;display:flex;gap:4px;padding:5px}
+  #modes button{border:0;background:transparent;padding:8px 16px;font-size:12.5px;border-radius:9px;color:var(--muted);white-space:nowrap}
+  #modes button.on{background:var(--blue);color:#fff;box-shadow:0 3px 10px rgba(31,95,158,.35)}
+
+  /* 视图容器 */
+  .view{position:fixed;inset:0;display:none}
+  .view.on{display:block}
+
+  /* ===== 实景地图视图 ===== */
+  #mapWrap{position:absolute;inset:0;overflow:hidden;cursor:grab;background:#0f1a26}
+  #mapWrap.drag{cursor:grabbing}
+  #satCanvas{position:absolute;transform-origin:0 0;will-change:transform}
+  #pins{position:absolute;inset:0;pointer-events:none}
+  .pin{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer;width:22px;height:22px;
+    border-radius:50%;border:2px solid rgba(255,255,255,.92);box-shadow:0 2px 8px rgba(0,0,0,.5);
+    display:flex;align-items:center;justify-content:center;transition:transform .12s}
+  .pin:hover,.pin.sel{transform:translate(-50%,-50%) scale(1.5);z-index:9}
+  .pin .core{width:7px;height:7px;background:#fff;border-radius:50%}
+  .pin.star{width:30px;height:30px;border-color:#ffd166}
+  .pin.star .core{width:10px;height:10px;background:#ffd166}
+  .pin-tag{position:absolute;transform:translate(-50%,-50%);pointer-events:none;font-size:11px;font-weight:600;
+    color:#fff;background:rgba(12,24,38,.72);padding:3px 8px;border-radius:6px;white-space:nowrap;
+    text-shadow:0 1px 2px #000;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+  .pin-tag.star{background:rgba(217,119,6,.9);font-size:12.5px}
+  #mapHud{position:absolute;left:18px;bottom:20px;z-index:8;padding:10px 13px;font-size:11.5px;color:#33465c;line-height:1.8}
+  #mapHud b{color:var(--blue)}
+  #mapCtrls{position:absolute;right:18px;bottom:20px;z-index:8;display:flex;flex-direction:column;gap:6px}
+  #mapCtrls button{width:42px;height:38px;padding:0;font-size:17px;background:rgba(255,255,255,.95)}
+  #legend{position:absolute;right:18px;top:80px;z-index:8;padding:10px 12px;font-size:11px;line-height:1.9;color:#33465c}
+  #legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  #mapScale{position:absolute;left:18px;bottom:112px;z-index:8;font-size:10.5px;color:#fff;background:rgba(0,0,0,.45);padding:3px 8px;border-radius:5px}
+
+  /* ===== 照片画廊视图 ===== */
+  #galleryView{overflow-y:auto;background:linear-gradient(180deg,#f4f8fc,#e8eff7)}
+  #galInner{max-width:1180px;margin:0 auto;padding:96px 20px 40px}
+  .gal-head{text-align:center;margin-bottom:22px}
+  .gal-head h2{margin:0;font-size:23px}
+  .gal-head p{color:var(--muted);font-size:12.5px;margin:8px 0 16px}
+  #filters{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin-bottom:24px}
+  #filters button{padding:7px 14px;font-size:12px}
+  #filters button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  #galGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:13px;overflow:hidden;box-shadow:0 4px 16px rgba(28,52,84,.09);cursor:zoom-in;transition:.18s}
+  .card:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(28,52,84,.16)}
+  .card img{width:100%;height:170px;object-fit:cover;display:block;background:#dde6ef}
+  .card .ct{padding:11px 13px 13px}
+  .card .ct h3{margin:0 0 4px;font-size:13.5px}
+  .card .ct span{font-size:11px;color:var(--muted);line-height:1.55;display:block}
+
+  /* ===== 建筑详情面板 ===== */
+  #detail{position:fixed;right:0;top:0;bottom:0;width:370px;max-width:92vw;z-index:30;
+    background:rgba(255,255,255,.97);border-left:1px solid var(--line);box-shadow:-8px 0 36px rgba(20,40,66,.2);
+    transform:translateX(102%);transition:transform .28s cubic-bezier(.2,.8,.2,1);overflow-y:auto;backdrop-filter:blur(10px)}
+  #detail.show{transform:translateX(0)}
+  #detail .dh{padding:18px 18px 0}
+  #detail h2{margin:0;font-size:20px}
+  #detail .kind{display:inline-block;font-size:11px;color:var(--gold);background:#fff3e0;padding:2px 9px;border-radius:12px;margin:8px 0 0}
+  #detail .desc{font-size:12.5px;line-height:1.75;color:#33465c;padding:12px 18px 0}
+  #dPhoto{margin:14px 18px 0;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#eef3f8}
+  #dPhoto img{width:100%;display:block;cursor:zoom-in}
+  #dPhoto .cap{font-size:11px;color:var(--muted);padding:7px 10px;background:#fbfdff;line-height:1.5}
+  #dThumbs{display:flex;gap:7px;padding:10px 18px 0;flex-wrap:wrap}
+  #dThumbs img{width:56px;height:48px;object-fit:cover;border-radius:6px;border:2px solid transparent;cursor:pointer}
+  #dThumbs img.on{border-color:var(--blue)}
+  #detail .interior{font-size:12px;line-height:1.7;background:#f3f7fb;border-left:3px solid var(--blue);
+    margin:16px 18px 0;padding:10px 12px;border-radius:0 8px 8px 0;color:#33465c}
+  #detail .acts{display:flex;gap:8px;flex-wrap:wrap;padding:16px 18px 30px}
+  button{font-family:inherit;font-size:12px;border:1px solid var(--line);background:#fff;color:var(--text);
+    padding:9px 13px;border-radius:8px;cursor:pointer;transition:.15s}
+  button:hover{border-color:var(--blue);color:var(--blue);background:#f4f9ff}
+  button.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+  button.primary:hover{background:#174e83;color:#fff}
+  #dClose{position:absolute;right:14px;top:14px;width:32px;height:32px;padding:0;font-size:18px;line-height:1}
+
+  /* 灯箱 */
+  #lightbox{position:fixed;inset:0;z-index:100;background:rgba(8,16,26,.94);display:none;align-items:center;justify-content:center;cursor:zoom-out}
+  #lightbox.show{display:flex}
+  #lightbox img{max-width:94vw;max-height:88vh;border-radius:6px;box-shadow:0 12px 60px rgba(0,0,0,.7)}
+  #lbCap{position:absolute;bottom:4vh;left:0;right:0;text-align:center;color:#e8eef5;font-size:13px}
+
+  /* 加载 */
+  #loading{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;
+    background:linear-gradient(135deg,#f0f5fa,#dce8f4);font-size:15px;color:#37506b}
+  .spin{width:36px;height:36px;border:3px solid #c7d9eb;border-top-color:var(--blue);border-radius:50%;animation:r 1s linear infinite}
+  @keyframes r{to{transform:rotate(360deg)}}
+
+  @media(max-width:760px){
+    header{left:10px;top:10px;padding:10px 13px;max-width:calc(100vw - 20px)}
+    header h1{font-size:15px}
+    header p{display:none}
+    #modes{top:auto;bottom:14px;left:50%;width:calc(100vw - 20px);justify-content:center}
+    #modes button{flex:1;padding:10px 6px;font-size:12px}
+    #mapHud{bottom:76px;left:10px;font-size:10.5px;padding:7px 10px}
+    #mapCtrls{right:10px;bottom:76px}
+    #legend{display:none}
+    #mapScale{bottom:150px;left:10px}
+    #galInner{padding:74px 12px 90px}
+    #detail{width:100%;top:auto;height:76vh;border-left:0;border-top:1px solid var(--line);border-radius:16px 16px 0 0}
+  }
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="spin"></div><div>正在加载校区实景影像…</div></div>
+
+<header class="panel">
+  <h1>河南财经政法大学 · 郑东校区</h1>
+  <p><span class="badge">实景卫星影像</span><span class="badge">校园实景照片</span>
+  以覆盖全校的高清卫星影像为底图，逐栋标注建筑真实位置；点击标记查看该楼实景照片与介绍。三维体块模型为示意，可切换查看。</p>
+</header>
+
+<div id="modes" class="panel">
+  <button id="mMap" class="on">实景地图</button>
+  <button id="mGallery">实景照片</button>
+  <button id="m3d">三维示意</button>
+</div>
+
+<!-- 实景地图 -->
+<div class="view on" id="mapView">
+  <div id="mapWrap">
+    <img id="satCanvas" src="./satellite.jpg" alt="校区卫星影像">
+    <div id="pins"></div>
+    <div id="mapScale">全校卫星影像 · 约 100 米</div>
+    <div id="legend" class="panel">
+      <div style="font-weight:600;margin-bottom:5px;color:#1b2a3a">图例</div>
+      <div><i style="background:#d97706"></i>图书馆（地标）</div>
+      <div><i style="background:#1f5f9e"></i>教学 / 办公 / 实验</div>
+      <div><i style="background:#2fa36b"></i>宿舍 / 生活</div>
+      <div><i style="background:#8b5cf6"></i>体育 / 场馆</div>
+    </div>
+    <div id="mapHud" class="panel">
+      <b>拖动</b>平移 · <b>滚轮/双指</b>缩放 · <b>点击圆点</b>看实景照片<br>
+      <span style="color:#7b8ca0">底图为真实卫星影像，建筑位置按影像数字化标注</span>
+    </div>
+    <div id="mapCtrls">
+      <button id="zIn" title="放大">＋</button>
+      <button id="zOut" title="缩小">－</button>
+      <button id="zRst" title="复位">⟲</button>
+    </div>
+  </div>
+</div>
+
+<!-- 照片画廊 -->
+<div class="view" id="galleryView">
+  <div id="galInner">
+    <div class="gal-head">
+      <h2>河南财经政法大学 · 实景照片</h2>
+      <p>来自学校官网与公开渠道的校园实景，点击照片可放大查看</p>
+      <div id="filters"></div>
+    </div>
+    <div id="galGrid"></div>
+  </div>
+</div>
+
+<!-- 建筑详情 -->
+<aside id="detail" class="panel">
+  <button id="dClose" title="关闭">×</button>
+  <div class="dh"><h2 id="dName"></h2><div class="kind" id="dKind"></div></div>
+  <div class="desc" id="dDesc"></div>
+  <div id="dPhoto"><img id="dImg" alt="实景照片"><div class="cap" id="dCap"></div></div>
+  <div id="dThumbs"></div>
+  <div class="interior" id="dInterior"></div>
+  <div class="acts">
+    <button class="primary" id="dTo3d">查看三维模型与内部</button>
+    <button id="dFocus">在地图上定位</button>
+  </div>
+</aside>
+
+<div id="lightbox"><img id="lightboxImg" alt=""><div id="lbCap"></div></div>
+
+<script>
+window.addEventListener('error',function(e){
+  var l=document.getElementById('loading');
+  if(l&&l.style.display!=='none') l.innerHTML='<div style="color:#b42318;max-width:80%;text-align:center">加载出错：'+(e.message||'未知')+'</div>';
+});
+</script>
+<script>
+/* ---------- 实景照片数据（经人工核对标注） ---------- */
+const PHOTOS=[
+ {f:'library_aerial.jpg',t:'图书馆航拍全景',c:'图书馆',d:'中心图书馆与明湖、鉴湖的航拍实景，大挑檐平顶与规整中轴清晰可见'},
+ {f:'lib_front2.jpg',t:'图书馆正立面',c:'图书馆',d:'银白竖柱与蓝色玻璃幕墙相间，顶部巨大方形挑檐'},
+ {f:'lib_lake.jpg',t:'图书馆与湖畔',c:'图书馆',d:'图书馆侧面与明湖景观'},
+ {f:'lib_tulip.jpg',t:'图书馆前郁金香',c:'图书馆',d:'春季图书馆前的郁金香花坛'},
+ {f:'axis_front.jpg',t:'校园中轴线',c:'校园全景',d:'南北中轴步道与两侧建筑'},
+ {f:'campus_path.jpg',t:'校园步道',c:'校园全景',d:'林荫步道实景'},
+ {f:'south_gate.jpg',t:'郑东校区南门',c:'校门',d:'校区南门入口广场'},
+ {f:'gate2.jpg',t:'校门近景',c:'校门',d:'校门建筑近景'},
+ {f:'gate_close.jpg',t:'校门细部',c:'校门',d:'校门近景细部'},
+ {f:'clocktower.jpg',t:'校园钟塔',c:'校门',d:'红砖钟塔与拱廊'},
+ {f:'clocktower2.jpg',t:'钟塔近景',c:'校门',d:'钟塔近景'},
+ {f:'teaching.jpg',t:'教学楼',c:'教学楼',d:'灰砖立面教学楼与拱形入口'},
+ {f:'teaching2.jpg',t:'教学楼侧影',c:'教学楼',d:'教学楼另一侧'},
+ {f:'building_gray.jpg',t:'灰砖建筑',c:'教学楼',d:'灰砖建筑与周边绿化'},
+ {f:'zhixing.jpg',t:'知行楼',c:'教学楼',d:'橙红格栅与灰砖立面'},
+ {f:'canteen2.jpg',t:'学生食堂',c:'生活服务',d:'食堂建筑实景'},
+ {f:'dorm.jpg',t:'学生公寓',c:'宿舍',d:'宿舍楼与春季花木'},
+ {f:'dorm2.jpg',t:'学生公寓',c:'宿舍',d:'宿舍楼外立面'},
+ {f:'dorm3.jpg',t:'学生公寓',c:'宿舍',d:'宿舍楼近景'},
+ {f:'dorm4.jpg',t:'学生公寓',c:'宿舍',d:'宿舍楼近景'},
+ {f:'dorm5.jpg',t:'学生公寓',c:'宿舍',d:'宿舍楼近景'},
+ {f:'lake2.jpg',t:'明湖',c:'湖景',d:'湖面与倒影'},
+ {f:'lake_big.jpg',t:'明湖全景',c:'湖景',d:'湖面全景'},
+ {f:'lake_pavilion.jpg',t:'湖畔亭榭',c:'湖景',d:'湖边亭台与樱花'},
+ {f:'waterfall.jpg',t:'思源瀑布',c:'湖景',d:'校园瀑布景观'},
+ {f:'waterfall2.jpg',t:'瀑布近景',c:'湖景',d:'瀑布近景'},
+ {f:'rockery.jpg',t:'弘毅山',c:'湖景',d:'校园假山景观'},
+ {f:'rockery2.jpg',t:'假山细部',c:'湖景',d:'假山细部'}
+];
+const PB='./realphotos/';
+const CATS=['全部','图书馆','教学楼','宿舍','湖景','校门','生活服务','校园全景'];
+
+/* 建筑 -> 实景照片 映射（按类型兜底） */
+function photosFor(b){
+  if(!b) return [];
+  if(b.id==='library') return PHOTOS.filter(p=>p.c==='图书馆');
+  if(b.kind==='dorm') return PHOTOS.filter(p=>p.c==='宿舍');
+  if(b.kind==='canteen') return PHOTOS.filter(p=>p.c==='生活服务');
+  if(b.kind==='gym') return [PHOTOS.find(p=>p.f==='campus_path.jpg')].filter(Boolean);
+  if(b.id&&/gate|south|admin/i.test(b.id)) return PHOTOS.filter(p=>p.c==='校门');
+  return PHOTOS.filter(p=>p.c==='教学楼'||p.c==='校园全景');
+}
+
+/* ---------- 状态 ---------- */
+let META=null, curB=null, curPhoto=0;
+const RES=0.9809289, CX=1408, CY=896, IMGW=2816, IMGH=1792;
+let scale=1, baseScale=1, tx=0, ty=0;
+
+const $=s=>document.querySelector(s);
+const wrap=$('#mapWrap'), sat=$('#satCanvas'), pinLayer=$('#pins');
+
+/* ---------- 卫星图交互：缩放/平移 ---------- */
+function applyTransform(){ sat.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; pinLayer.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; }
+function fitMap(){
+  // cover 模式：铺满屏幕，无黑边（轻微裁掉上下边缘）
+  baseScale=Math.max(wrap.clientWidth/IMGW, wrap.clientHeight/IMGH);
+  scale=baseScale;
+  tx=(wrap.clientWidth-IMGW*scale)/2;
+  ty=(wrap.clientHeight-IMGH*scale)/2;
+  sat.style.width=IMGW+'px'; sat.style.height=IMGH+'px';
+  pinLayer.style.width=IMGW+'px'; pinLayer.style.height=IMGH+'px';
+  applyTransform(); buildPins();
+}
+function zoomAt(factor,cx,cy){
+  const ns=Math.max(baseScale*.8,Math.min(baseScale*9,scale*factor));
+  const k=ns/scale;
+  tx=cx-(cx-tx)*k; ty=cy-(cy-ty)*k; scale=ns; applyTransform();
+}
+let dragging=false,lx=0,ly=0,moved=0;
+wrap.addEventListener('pointerdown',e=>{ if(e.target.closest('.pin')) return; dragging=true;moved=0;lx=e.clientX;ly=e.clientY;wrap.classList.add('drag');wrap.setPointerCapture(e.pointerId);});
+wrap.addEventListener('pointermove',e=>{ if(!dragging)return; const dx=e.clientX-lx,dy=e.clientY-ly;tx+=dx;ty+=dy;lx=e.clientX;ly=e.clientY;moved+=Math.abs(dx)+Math.abs(dy);applyTransform();});
+wrap.addEventListener('pointerup',e=>{ dragging=false;wrap.classList.remove('drag'); });
+wrap.addEventListener('wheel',e=>{ e.preventDefault(); const r=wrap.getBoundingClientRect(); zoomAt(e.deltaY<0?1.18:1/1.18,e.clientX-r.left,e.clientY-r.top);},{passive:false});
+// 双指缩放
+let pinch=null;
+wrap.addEventListener('touchstart',e=>{ if(e.touches.length===2){ const [a,b]=e.touches; pinch=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);}},{passive:true});
+wrap.addEventListener('touchmove',e=>{ if(e.touches.length===2&&pinch){ const [a,b]=e.touches; const d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY); const r=wrap.getBoundingClientRect(); zoomAt(d/pinch,(a.clientX+b.clientX)/2-r.left,(a.clientY+b.clientY)/2-r.top); pinch=d; }},{passive:true});
+wrap.addEventListener('touchend',()=>{pinch=null;},{passive:true});
+
+/* ---------- 建筑标记 ---------- */
+function kindColor(k){ return {library:'#d97706',dorm:'#2fa36b',canteen:'#2fa36b',gym:'#8b5cf6',classroom:'#1f5f9e',office:'#1f5f9e',lab:'#1f5f9e'}[k]||'#64748b'; }
+let pinEls=[];
+function buildPins(){
+  pinLayer.innerHTML=''; pinEls=[];
+  if(!META) return;
+  for(const b of META.buildings){
+    const px=CX+b.x/RES, py=CY-b.y/RES;
+    if(px<0||px>IMGW||py<0||py>IMGH) continue;
+    const star=(b.id==='library');
+    const el=document.createElement('div');
+    el.className='pin'+(star?' star':''); el.style.left=px+'px'; el.style.top=py+'px';
+    el.style.background=kindColor(b.kind);
+    el.innerHTML='<div class="core"></div>';
+    el.title=b.name;
+    el.onclick=(ev)=>{ev.stopPropagation(); if(moved>6)return; openDetail(b.id);};
+    pinLayer.appendChild(el); pinEls.push({id:b.id,x:px,y:py,el});
+    // 地标与主要建筑加文字标签
+    if(star || b.kind==='office' || /教学楼|行政|食堂|体育馆/.test(b.name)){
+      const tg=document.createElement('div');
+      tg.className='pin-tag'+(star?' star':''); tg.style.left=px+'px'; tg.style.top=(py-20)+'px';
+      tg.textContent=b.name.replace(/（.*?）/g,'');
+      pinLayer.appendChild(tg);
+    }
+  }
+}
+function highlightPin(id){ pinEls.forEach(p=>p.el.classList.toggle('sel',p.id===id)); }
+
+/* ---------- 建筑详情 ---------- */
+function openDetail(id){
+  const b=META.buildings.find(x=>x.id===id); if(!b) return;
+  curB=b; curPhoto=0; highlightPin(id);
+  $('#dName').textContent=b.name;
+  const kn={library:'图书馆',dorm:'学生公寓',classroom:'教学楼',office:'办公 / 行政',lab:'实验楼',canteen:'食堂',gym:'体育场馆'};
+  $('#dKind').textContent=kn[b.kind]||'建筑';
+  $('#dDesc').textContent=b.desc||'';
+  $('#dInterior').innerHTML='<b>室内示意</b><br>'+(b.interior||'该建筑的内部空间示意可在三维模式中逐层查看。');
+  renderPhoto(); renderThumbs();
+  $('#detail').classList.add('show');
+}
+function renderPhoto(){
+  const ps=photosFor(curB); if(!ps.length){ $('#dPhoto').style.display='none'; return; }
+  $('#dPhoto').style.display='block';
+  const p=ps[curPhoto%ps.length];
+  $('#dImg').src=PB+p.f; $('#dCap').textContent=p.t+' · '+p.d;
+}
+function renderThumbs(){
+  const ps=photosFor(curB);
+  $('#dThumbs').innerHTML=ps.map((p,i)=>`<img src="${PB}${p.f}" class="${i===curPhoto%ps.length?'on':''}" data-i="${i}" alt="${p.t}">`).join('');
+  $('#dThumbs').querySelectorAll('img').forEach(im=>{ im.onclick=()=>{curPhoto=+im.dataset.i;renderPhoto();renderThumbs();}; });
+}
+$('#dClose').onclick=()=>{ $('#detail').classList.remove('show'); highlightPin(null); };
+$('#dTo3d').onclick=()=>{ location.href='./index3d.html?id='+encodeURIComponent(curB.id); };
+$('#dFocus').onclick=()=>{
+  if(!curB)return; const px=CX+curB.x/RES, py=CY-curB.y/RES;
+  scale=Math.max(scale,baseScale*2.4); tx=wrap.clientWidth/2-px*scale; ty=wrap.clientHeight/2-py*scale; applyTransform();
+  switchView('map'); highlightPin(curB.id);
+};
+
+/* ---------- 照片画廊 ---------- */
+function buildGallery(){
+  const f=$('#filters');
+  f.innerHTML=CATS.map((c,i)=>`<button class="${i===0?'on':''}" data-c="${c}">${c}</button>`).join('');
+  f.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{
+    f.querySelectorAll('button').forEach(x=>x.classList.remove('on')); btn.classList.add('on');
+    drawCards(btn.dataset.c);
+  });
+  drawCards('全部');
+}
+function drawCards(cat){
+  const list=cat==='全部'?PHOTOS:PHOTOS.filter(p=>p.c===cat);
+  $('#galGrid').innerHTML=list.map(p=>`<div class="card" data-f="${p.f}" data-t="${p.t}" data-d="${p.d}">
+    <img src="${PB}${p.f}" alt="${p.t}" loading="lazy"><div class="ct"><h3>${p.t}</h3><span>${p.d}</span></div></div>`).join('');
+  $('#galGrid').querySelectorAll('.card').forEach(c=>c.onclick=()=>{
+    $('#lightboxImg').src=PB+c.dataset.f; $('#lbCap').textContent=c.dataset.t+' · '+c.dataset.d; $('#lightbox').classList.add('show');
+  });
+}
+$('#lightbox').onclick=()=>$('#lightbox').classList.remove('show');
+$('#dImg').onclick=()=>{ const ps=photosFor(curB); const p=ps[curPhoto%ps.length]; $('#lightboxImg').src=PB+p.f; $('#lbCap').textContent=p.t; $('#lightbox').classList.add('show'); };
+
+/* ---------- 模式切换 ---------- */
+function switchView(v){
+  ['mapView','galleryView'].forEach(id=>$('#'+id).classList.toggle('on', id===(v==='map'?'mapView':'galleryView')));
+  ['mMap','mGallery'].forEach(id=>$('#'+id).classList.toggle('on', id===(v==='map'?'mMap':'mGallery')));
+  if(v==='map') setTimeout(applyTransform,50);
+}
+$('#mMap').onclick=()=>switchView('map');
+$('#mGallery').onclick=()=>switchView('gallery');
+$('#m3d').onclick=()=>{ location.href='./index3d.html'; };
+$('#zIn').onclick=()=>zoomAt(1.35,wrap.clientWidth/2,wrap.clientHeight/2);
+$('#zOut').onclick=()=>zoomAt(1/1.35,wrap.clientWidth/2,wrap.clientHeight/2);
+$('#zRst').onclick=()=>fitMap();
+window.addEventListener('resize',()=>{ if($('#mapView').classList.contains('on')) fitMap(); });
+
+/* ---------- 启动 ---------- */
+fetch('./buildings.json').then(r=>r.json()).then(d=>{
+  META=d; buildGallery(); fitMap();
+  $('#loading').style.display='none';
+}).catch(e=>{
+  $('#loading').innerHTML='<div style="color:#b42318">数据加载失败：'+e.message+'</div>';
+});
+</script>
+</body>
+</html>

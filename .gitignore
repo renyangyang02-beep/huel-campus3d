@@ -1,0 +1,32 @@
+# 忽略规则：只上传交付物，排除中间研究素材与缓存
+
+# 参考素材（卫星图、规划图、微信文章截图等，170MB，非交付物）
+output/ref_photos/
+
+# 渲染预览与调试截图（中间产物）
+output/*.png
+output/*.jpg
+output/test_*
+output/detected_*
+output/_*
+output/v*_render*.png
+output/v*_top.png
+
+# 备份与临时文件
+output/*_backup.glb
+output/*.blend1
+*.tmp
+*.log
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 贴图对比预览（中间产物）
+output/tex/*compare*.*
+output/tex/*preview*.*

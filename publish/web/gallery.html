@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>校园实景照片 · 河南财经政法大学</title>
+<style>
+  :root{--line:#d7e2ee;--text:#1b2a3a;--muted:#5d7086;--blue:#1f5f9e}
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#f4f8fc,#e8eff7);color:var(--text);
+    font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;min-height:100vh}
+  header{padding:22px 20px 10px;text-align:center}
+  header h1{margin:0;font-size:22px}
+  header p{color:var(--muted);font-size:12.5px;margin:8px 0 16px}
+  header a{display:inline-block;margin-top:6px;color:var(--blue);font-size:12px;text-decoration:none;
+    border:1px solid var(--line);padding:6px 14px;border-radius:8px;background:#fff}
+  #filters{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin:6px 20px 22px}
+  #filters button{font-family:inherit;font-size:12px;border:1px solid var(--line);background:#fff;color:var(--text);
+    padding:7px 14px;border-radius:8px;cursor:pointer}
+  #filters button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  #galGrid{max-width:1180px;margin:0 auto;padding:0 20px 50px;display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:13px;overflow:hidden;cursor:zoom-in;
+    box-shadow:0 4px 16px rgba(28,52,84,.09);transition:.18s}
+  .card:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(28,52,84,.16)}
+  .card img{width:100%;height:180px;object-fit:cover;display:block;background:#dde6ef}
+  .card .ct{padding:11px 13px 14px}
+  .card .ct h3{margin:0 0 4px;font-size:13.5px}
+  .card .ct span{font-size:11px;color:var(--muted);line-height:1.55;display:block}
+  #lightbox{position:fixed;inset:0;z-index:100;background:rgba(8,16,26,.94);display:none;
+    align-items:center;justify-content:center;cursor:zoom-out;flex-direction:column}
+  #lightbox.show{display:flex}
+  #lightbox img{max-width:94vw;max-height:84vh;border-radius:6px;box-shadow:0 12px 60px rgba(0,0,0,.7)}
+  #lbCap{color:#e8eef5;font-size:13px;margin-top:14px;text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <h1>河南财经政法大学 · 实景照片</h1>
+  <p>来自学校官网与公开渠道的校园实景 · 分类已按照片中楼体题字与招牌逐张核实（非按文件名推断）</p>
+  <a href="./index.html">← 返回三维校园</a>
+</header>
+<div id="filters"></div>
+<div id="galGrid"></div>
+<div id="lightbox"><img id="lightboxImg" alt=""><div id="lbCap"></div></div>
+<script>
+// 分类以照片画面实际内容为准（可辨认的楼体题字/招牌为据），非文件名。
+// 已去除内容重复的 8 张副本；原先误标为"宿舍""校门"的照片已按实况重分类。
+const PHOTOS=[
+ // 图书馆（题字"图书馆"，无误）
+ {f:'library_aerial.jpg',t:'图书馆航拍全景',c:'图书馆',d:'中心图书馆与环湖水系航拍实景'},
+ {f:'lib_front2.jpg',t:'图书馆正立面',c:'图书馆',d:'正门石匾题"图书馆"；银白竖柱、蓝玻璃幕墙与大挑檐'},
+ {f:'lib_lake.jpg',t:'图书馆与湖畔',c:'图书馆',d:'图书馆侧面与垂柳环绕的湖岸'},
+ {f:'lib_tulip.jpg',t:'图书馆前郁金香',c:'图书馆',d:'春季图书馆前红黄郁金香花坛'},
+ // 教学楼（按楼体/门楣题字精确命名）
+ {f:'dorm2.jpg',t:'文韬楼（第一教学楼）',c:'教学楼',d:'门楣题"第一教学楼"，侧墙竖排"文韬楼"；灰砖+玻璃幕墙'},
+ {f:'dorm3.jpg',t:'文锦楼（第二教学楼）',c:'教学楼',d:'门厅刻"第二教学楼"，塔楼竖排"文锦楼"'},
+ {f:'building_gray.jpg',t:'建树楼',c:'教学楼',d:'楼体竖排"建树楼"三字，灰砖立面、绿树掩映'},
+ {f:'zhixing.jpg',t:'知行楼',c:'教学楼',d:'橙红格栅立面，塔楼竖排"知行楼"；电子屏显示"莅临指导"欢迎语'},
+ {f:'dorm.jpg',t:'教学楼与白玉兰',c:'教学楼',d:'灰砖格栅立面的局部特写，前景为春季白玉兰（画面仅见局部，具体楼名待考）'},
+ // 办公楼（门口电子屏、密集空调外机，非教学楼）
+ {f:'teaching.jpg',t:'办公楼',c:'办公楼',d:'灰砖立面、整列空调外机与玻璃门厅电子屏；原误标为"教学楼"'},
+ // 生活服务（食堂）——原 gate2 误归"校门"
+ {f:'gate2.jpg',t:'第二食堂（知味轩餐厅）',c:'生活服务',d:'楼体竖排"第二食堂"，正中招牌"知味轩餐厅"；原误标为"校门近景"'},
+ {f:'canteen2.jpg',t:'第三食堂',c:'生活服务',d:'楼体竖排"第三食堂"，一层为餐饮商铺；位于生活服务区'},
+ // 校门
+ {f:'south_gate.jpg',t:'郑东校区南门',c:'校门',d:'校名石"河南财经政法大学"与两侧门楼，正对图书馆中轴'},
+ {f:'clocktower.jpg',t:'校园钟塔',c:'校门',d:'红砖钟塔与台阶广场，校区标志性景观'},
+ // 湖景（瀑布与假山为同一处"弘毅山"景观，仅保留两张不同视角）
+ {f:'lake2.jpg',t:'明湖',c:'湖景',d:'湖面倒影与结队游鸭，远处可见校园建筑'},
+ {f:'lake_pavilion.jpg',t:'湖畔亭榭与樱花',c:'湖景',d:'白色亭台立于湖中，春季樱花前景'},
+ {f:'waterfall.jpg',t:'弘毅山瀑布（近景）',c:'湖景',d:'层叠假山瀑布与山顶六角凉亭近景'},
+ {f:'rockery.jpg',t:'弘毅山瀑布（远景）',c:'湖景',d:'同一处假山瀑布的远景，前景为鸢尾花与水生植物'},
+ // 校园全景
+ {f:'axis_front.jpg',t:'校园中轴线全景',c:'校园全景',d:'南北中轴与图书馆，秋日航拍（画面带"财大十二时辰"字样）'},
+ {f:'campus_path.jpg',t:'林荫步道',c:'校园全景',d:'春日林荫道与学生骑行，远处为校园雕塑'},
+];
+const PB='./realphotos/';
+const CATS=['全部','图书馆','教学楼','办公楼','生活服务','校门','湖景','校园全景'];
+const $=s=>document.querySelector(s);
+const f=$('#filters');
+f.innerHTML=CATS.map((c,i)=>`<button class="${i===0?'on':''}" data-c="${c}">${c}</button>`).join('');
+f.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{
+  f.querySelectorAll('button').forEach(x=>x.classList.remove('on')); btn.classList.add('on');
+  draw(btn.dataset.c);
+});
+function draw(cat){
+  const list=cat==='全部'?PHOTOS:PHOTOS.filter(p=>p.c===cat);
+  $('#galGrid').innerHTML=list.map(p=>`<div class="card" data-t="${p.t}" data-d="${p.d}">
+    <img src="${PB}${p.f}" alt="${p.t}" loading="lazy"><div class="ct"><h3>${p.t}</h3><span>${p.d}</span></div></div>`).join('');
+  $('#galGrid').querySelectorAll('.card').forEach(c=>c.onclick=()=>{
+    $('#lightboxImg').src=c.querySelector('img').src; $('#lbCap').textContent=c.dataset.t+' · '+c.dataset.d;
+    $('#lightbox').classList.add('show');
+  });
+}
+draw('全部');
+$('#lightbox').onclick=()=>$('#lightbox').classList.remove('show');
+</script>
+</body>
+</html>

@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>河南财经政法大学（郑东校区）· 三维实景导览</title>
+<style>
+  :root{
+    --bg:#eaf1f8; --panel:rgba(255,255,255,.94); --line:#d9e3ee;
+    --text:#1d2b3a; --muted:#5d7086; --accent:#d97706; --accent2:#2563a8;
+    --shadow:0 8px 30px rgba(28,52,84,.16);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+    font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif}
+  #scene3d{position:fixed;inset:0;width:100%;height:100%;display:block;outline:none}
+  .panel{background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);
+    border-radius:14px;backdrop-filter:blur(8px)}
+  header{display:none} /* 品牌栏已替代说明头部 */
+  header.legacy-show{display:block;position:fixed;left:20px;top:18px;padding:14px 18px;z-index:10;max-width:min(460px,calc(100vw - 40px))}
+  header h1{margin:0;font-size:19px;letter-spacing:.4px}
+  header p{margin:6px 0 0;font-size:12px;color:var(--muted);line-height:1.6}
+  .badge{display:inline-block;background:#e8f1fb;color:var(--accent2);border-radius:20px;
+    padding:2px 10px;font-size:11px;margin-right:6px}
+  #info{position:fixed;right:20px;top:18px;width:320px;z-index:10;padding:18px;display:none;
+    max-height:calc(100vh - 250px);overflow:auto}
+  #info.show{display:block}
+  #info h2{margin:0 0 4px;font-size:18px}
+  .kind{font-size:11px;color:var(--accent);background:#fff3e0;display:inline-block;
+    padding:2px 9px;border-radius:12px;margin-bottom:10px}
+  #info .desc{font-size:13px;line-height:1.75;color:#33465c}
+  #info .meta{font-size:11px;color:var(--muted);margin-top:10px;border-top:1px dashed var(--line);padding-top:9px}
+  #info .interior{font-size:12px;line-height:1.7;background:#f3f7fb;border-left:3px solid var(--accent2);
+    padding:9px 11px;border-radius:0 8px 8px 0;margin-top:10px;color:#33465c}
+  .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  button{font-family:inherit;font-size:12px;border:1px solid var(--line);background:#fff;color:var(--text);
+    padding:8px 12px;border-radius:8px;cursor:pointer;transition:.15s}
+  button:hover{border-color:var(--accent2);color:var(--accent2);background:#f4f9ff}
+  button.primary{background:var(--accent2);border-color:var(--accent2);color:#fff}
+  button.primary:hover{background:#1d548e;color:#fff}
+  button.warn{background:var(--accent);border-color:var(--accent);color:#fff}
+  #toolbar{position:fixed;left:20px;bottom:20px;z-index:10;padding:10px;display:flex;gap:8px;flex-wrap:wrap;max-width:calc(100vw - 40px)}
+  #hint{position:fixed;left:20px;bottom:82px;z-index:10;font-size:11px;color:var(--muted);
+    background:rgba(255,255,255,.75);padding:6px 10px;border-radius:8px}
+  #mapPanel{position:fixed;right:20px;bottom:20px;width:330px;height:260px;z-index:10;overflow:hidden;display:flex;flex-direction:column}
+  #mapPanel.collapsed{height:44px}
+  #mapPanel .bar{height:44px;min-height:44px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 12px;border-bottom:1px solid var(--line);font-size:13px;font-weight:600}
+  #map{width:100%;flex:1;min-height:0;position:relative;overflow:hidden;background:#e7eef4;cursor:grab;touch-action:none}
+  #map.drag{cursor:grabbing}
+  /* 统一画布: 图片 + SVG矢量层 + pin 共用同一坐标系, 缩放时严格对齐 */
+  #mapCanvas{position:absolute;left:0;top:0;transform-origin:center center;will-change:transform}
+  #mapCanvas img.satimg{position:absolute;inset:0;width:100%;height:100%;transition:opacity .3s}
+  #map.vec #mapCanvas img.satimg{opacity:.22}
+  #mapCanvas svg.veclayer{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  /* 矢量层样式 */
+  .veclayer .grid{stroke:#2f7cc0;stroke-width:1.2;stroke-dasharray:5 7;opacity:.45}
+  .veclayer .grid.major{stroke:#175a96;stroke-width:2.2;opacity:.6;stroke-dasharray:none}
+  .veclayer .gtick{fill:#175a96;font-size:14px;font-weight:700;paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round}
+  .veclayer .bldg{fill:rgba(32,102,170,.18);stroke:#1a5b96;stroke-width:2.4;pointer-events:auto;cursor:pointer;transition:fill .15s}
+  .veclayer .bldg.dorm{fill:rgba(86,138,148,.22);stroke:#3f7b86}
+  .veclayer .bldg.gate{fill:rgba(217,119,6,.42);stroke:#a45309;stroke-width:3}
+  .veclayer .bldg.innovation{fill:rgba(26,140,190,.32);stroke:#12496b;stroke-width:3.2}
+  .veclayer .bldg:hover{fill:rgba(217,119,6,.5);stroke:#a45309}
+  .veclayer .bname{fill:#123a5c;font-size:14px;font-weight:700;text-anchor:middle;
+    paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round;opacity:0;transition:opacity .3s}
+  #map.vec .veclayer .bname{opacity:.96}
+  .mpin{position:absolute;width:16px;height:20px;transform:translate(-50%,-100%);cursor:pointer;z-index:3;
+    filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))}
+  .mpin.active{width:22px;height:28px;z-index:4}
+  #mapScale{position:absolute;left:7px;bottom:6px;font-size:10px;color:#123a5c;z-index:5;pointer-events:none;
+    background:rgba(255,255,255,.92);border:1px solid #b8cad9;border-radius:5px;padding:3px 6px;
+    box-shadow:0 1px 4px rgba(0,0,0,.12);line-height:1.1}
+  #mapScale .sbar{display:block;height:4px;background:#123a5c;border-left:2px solid #123a5c;
+    border-right:2px solid #123a5c;margin-top:3px}
+  #compass{position:absolute;right:8px;top:7px;width:30px;height:30px;z-index:5;pointer-events:none}
+  #mapHint{position:absolute;right:7px;bottom:6px;font-size:9px;color:#2b5678;z-index:5;pointer-events:none;
+    background:rgba(255,255,255,.82);padding:2px 5px;border-radius:4px}
+  #mapPanel.collapsed #map{display:none}
+  #mapPanel .mapbtns{display:flex;gap:6px}
+  #mapPanel .mapbtns button{padding:4px 8px;font-size:11px}
+  #labels{position:fixed;inset:0;pointer-events:none;z-index:5;overflow:hidden}
+  .label{position:absolute;transform:translate(-50%,-100%);white-space:nowrap;font-size:11px;
+    background:rgba(255,255,255,.9);border:1px solid #cbd9e8;color:#263b52;padding:3px 7px;
+    border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+  .label.hot{background:#fff2dc;border-color:var(--accent);color:#9a4a00}
+  #loading{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,#eef4fa,#dbe8f5);font-size:15px;color:#37506b;flex-direction:column;gap:12px}
+  .spin{width:34px;height:34px;border:3px solid #c7d9eb;border-top-color:var(--accent2);border-radius:50%;animation:r 1s linear infinite}
+  @keyframes r{to{transform:rotate(360deg)}}
+  #floors{display:none;gap:6px;flex-wrap:wrap;margin-top:8px}
+  #floors.show{display:flex}
+  #floors button{padding:5px 9px;font-size:11px}
+  #modeTip{font-size:11px;color:var(--accent2);margin-top:8px;display:none}
+  #realPhoto{margin-top:12px}
+  #realPhoto .ph-title{font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;
+    display:flex;align-items:center;gap:6px}
+  #realPhoto .ph-title::before{content:'';width:3px;height:13px;background:var(--accent);border-radius:2px}
+  #realPhoto img{width:100%;border-radius:8px;border:1px solid var(--line);display:block;cursor:zoom-in}
+  #realPhoto .ph-note{font-size:10px;color:var(--muted);margin-top:5px;line-height:1.5}
+  #streetUI{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:12;display:none;
+    align-items:center;gap:8px;padding:8px 14px}
+  #streetUI.show{display:flex}
+  #streetUI .kbd{display:inline-block;background:#eef3f8;border:1px solid #cbd8e6;border-bottom-width:2px;
+    border-radius:5px;padding:2px 7px;font-size:11px;color:#37506b}
+  #streetUI button{padding:6px 10px}
+  .photo-lightbox{position:fixed;inset:0;z-index:100;background:rgba(10,20,32,.92);display:none;
+    align-items:center;justify-content:center;cursor:zoom-out}
+  .photo-lightbox.show{display:flex}
+  .photo-lightbox img{max-width:92vw;max-height:90vh;border-radius:6px;box-shadow:0 10px 50px rgba(0,0,0,.6)}
+
+  /* ===== 云上财大 · 品牌导览界面 ===== */
+  :root{--brand:#8c1d2c;--brand2:#bf7a2e;--gold:#c9a227}
+  .brandbar{position:fixed;left:0;top:0;width:100%;height:64px;z-index:20;
+    background:linear-gradient(90deg,rgba(140,29,44,.96),rgba(158,44,54,.93) 55%,rgba(191,122,46,.92));
+    display:flex;align-items:center;gap:14px;padding:0 22px;color:#fff;
+    box-shadow:0 2px 18px rgba(0,0,0,.22)}
+  .brandbar .logo{width:40px;height:40px;border-radius:50%;flex:0 0 40px;
+    background:radial-gradient(circle at 35% 30%,#ffe9b8,#c9a227 60%,#a6791a);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;
+    color:#7a1524;border:2px solid rgba(255,255,255,.7)}
+  .brandbar .btxt h1{margin:0;font-size:20px;letter-spacing:3px;font-weight:700;
+    text-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .brandbar .btxt p{margin:1px 0 0;font-size:10.5px;letter-spacing:1.5px;color:rgba(255,255,255,.85)}
+  .brandbar .spacer{flex:1}
+  .brandbar .chip{font-size:11px;color:#fff;border:1px solid rgba(255,255,255,.5);
+    background:rgba(255,255,255,.12);padding:5px 12px;border-radius:20px;white-space:nowrap}
+  .brandbar .clock{font-size:12px;color:rgba(255,255,255,.9);white-space:nowrap}
+
+  /* 左侧点位速览 */
+  #spotNav{position:fixed;left:16px;top:78px;width:186px;z-index:12;
+    max-height:calc(100vh - 96px);overflow-y:auto;padding:12px 11px}
+  #spotNav::-webkit-scrollbar{width:5px}
+  #spotNav::-webkit-scrollbar-thumb{background:#c9d5e2;border-radius:3px}
+  #spotNav .sn-title{font-size:12px;font-weight:700;color:var(--brand);letter-spacing:1px;
+    display:flex;align-items:center;gap:6px;margin:2px 2px 10px}
+  #spotNav .sn-title::before{content:'';width:4px;height:14px;background:var(--gold);border-radius:2px}
+  #spotNav .grp{font-size:10px;color:#93a2b3;margin:12px 2px 6px;letter-spacing:1px}
+  .spot{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:9px;cursor:pointer;
+    transition:.15s;border:1px solid transparent}
+  .spot:hover{background:#f4f8fc;border-color:#e2ebf5}
+  .spot.active{background:#fdf2e6;border-color:var(--brand2)}
+  .spot .ic{width:30px;height:30px;flex:0 0 30px;border-radius:8px;display:flex;align-items:center;
+    justify-content:center;font-size:16px;background:#eef3f9}
+  .spot.active .ic{background:#fbe3c4}
+  .spot .tx b{display:block;font-size:12px;color:#24384d;line-height:1.3}
+  .spot .tx small{display:block;font-size:9.5px;color:#93a2b3;margin-top:1px}
+  #spotNav .collapse{position:absolute;right:8px;top:8px;font-size:11px;color:#93a2b3;cursor:pointer}
+  #spotNav.collapsed{width:46px;overflow:hidden}
+  #spotNav.collapsed .sn-title span,#spotNav.collapsed .grp,#spotNav.collapsed .spot .tx,
+    #spotNav.collapsed .collapse span{display:none}
+  #spotNav.collapsed .spot{justify-content:center;padding:7px 0}
+
+  /* 增强实景查看器 */
+  #realPhoto{margin-top:12px}
+  .vp-main{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--line);
+    background:#e9eef4;line-height:0}
+  .vp-main img{width:100%;height:170px;object-fit:cover;display:block;cursor:zoom-in}
+  .vp-nav{position:absolute;top:50%;transform:translateY(-50%);width:28px;height:36px;border:0;
+    background:rgba(20,32,46,.5);color:#fff;font-size:19px;line-height:36px;text-align:center;
+    cursor:pointer;user-select:none}
+  .vp-nav:hover{background:rgba(20,32,46,.8)}
+  .vp-prev{left:0;border-radius:0 8px 8px 0}
+  .vp-next{right:0;border-radius:8px 0 0 8px}
+  .vp-count{position:absolute;right:8px;bottom:7px;font-size:10px;color:#fff;
+    background:rgba(0,0,0,.45);padding:2px 8px;border-radius:10px;line-height:1.5}
+  .vp-thumbs{display:flex;gap:6px;margin-top:7px;overflow-x:auto;padding-bottom:3px}
+  .vp-thumbs img{width:52px;height:40px;object-fit:cover;border-radius:6px;cursor:pointer;
+    border:2px solid transparent;flex:0 0 auto}
+  .vp-thumbs img.on{border-color:var(--brand2)}
+  .vp-thumbs::-webkit-scrollbar{height:4px}
+  .vp-thumbs::-webkit-scrollbar-thumb{background:#c9d5e2;border-radius:3px}
+
+  /* 实景打卡弹层 */
+  #scenicBar{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);z-index:12;
+    display:none;gap:6px;padding:8px 10px;max-width:min(760px,calc(100vw - 40px));overflow-x:auto}
+  #scenicBar.show{display:flex}
+  #scenicBar button{flex:0 0 auto;padding:6px 11px;font-size:11px}
+  #scenicBar button.on{background:var(--brand);border-color:var(--brand);color:#fff}
+
+  @media(max-width:760px){
+    .brandbar{height:56px;padding:0 12px;gap:9px}
+    .brandbar .logo{width:34px;height:34px;flex-basis:34px;font-size:14px}
+    .brandbar .btxt h1{font-size:16px;letter-spacing:2px}
+    .brandbar .btxt p{font-size:9px}
+    .brandbar .chip,.brandbar .clock{display:none}
+    #spotNav{left:8px;top:64px;width:150px;max-height:calc(100vh - 76px)}
+    header{display:none}
+    header{max-width:calc(100vw - 40px)}
+    #info{right:10px;top:100px;width:calc(100vw - 20px);max-height:46vh;overflow:auto}
+    #mapPanel{right:10px;bottom:10px;width:calc(100vw - 20px);height:210px}
+    #toolbar{left:10px;bottom:230px}
+    #hint{display:none}
+  }
+</style>
+<script type="importmap">
+{"imports":{
+  "three":"./vendor/three.module.js",
+  "three/addons/":"./vendor/addons/"
+}}
+</script>
+</head>
+<body>
+<canvas id="scene3d"></canvas>
+
+<div class="brandbar">
+  <div class="logo">财大</div>
+  <div class="btxt">
+    <h1>云上财大</h1>
+    <p>河南财经政法大学 · 郑东校区　数字实景导览</p>
+  </div>
+  <div class="spacer"></div>
+  <span class="chip">✦ 三维实景 · 点云导览</span>
+  <span class="clock" id="clock"></span>
+</div>
+
+<header class="panel">
+  <h1>河南财经政法大学 · 郑东校区</h1>
+  <p><span class="badge">云上财大</span><span class="badge">官方平面图复原</span>
+  点击左侧<strong>点位图标</strong>快速前往地标，或点击任意楼宇查看实景照片与内部；拖动旋转、滚轮缩放。</p>
+</header>
+
+<aside id="spotNav" class="panel">
+  <div class="collapse" id="spotCollapse" title="收起/展开"><span>◀</span></div>
+  <div class="sn-title"><span>点位速览</span></div>
+  <div id="spotList"></div>
+</aside>
+
+<aside id="info" class="panel">
+  <h2 id="iName"></h2>
+  <div class="kind" id="iKind"></div>
+  <div class="desc" id="iDesc"></div>
+  <div id="realPhoto">
+    <div class="ph-title">实景照片</div>
+    <div class="vp-main">
+      <img id="vpImg" alt="实景照片">
+      <div class="vp-nav vp-prev" id="vpPrev">‹</div>
+      <div class="vp-nav vp-next" id="vpNext">›</div>
+      <div class="vp-count" id="vpCount"></div>
+    </div>
+    <div class="vp-thumbs" id="vpThumbs"></div>
+    <div class="ph-note" id="vpCap"></div>
+  </div>
+  <div class="interior" id="iInterior"></div>
+  <div class="meta" id="iMeta"></div>
+  <div class="btns">
+    <button class="primary" id="btnInside">进入内部查看</button>
+    <button id="btnFocus">聚焦此楼</button>
+    <button id="btnClose">关闭</button>
+  </div>
+  <div id="floors"></div>
+  <div id="modeTip">内部剖面视角 · 点击楼层按钮逐层查看，或拖动旋转</div>
+</aside>
+
+<div id="hint">鼠标左键拖动旋转 · 滚轮缩放 · 单击建筑查看详情</div>
+
+<div id="toolbar" class="panel">
+  <button id="btnReset">重置视角</button>
+  <button id="btnLabels">隐藏标注</button>
+  <button id="btnExterior">全部外观</button>
+  <button id="btnMap">平面图定位</button>
+  <button id="btnScenic">实景打卡</button>
+  <button id="btnGallery">照片墙</button>
+  <button class="primary" id="btnStreet">街景漫游</button>
+</div>
+
+<div id="scenicBar" class="panel"></div>
+
+<div id="mapPanel" class="panel">
+  <div class="bar">
+    <span>实景位置 · 官方平面图（矢量刻度）</span>
+    <span class="mapbtns">
+      <button id="btnSat">放大刻度</button>
+      <button id="btnMapToggle">收起</button>
+    </span>
+  </div>
+  <div id="map"></div>
+</div>
+
+<div id="streetUI" class="panel">
+  <span class="kbd">W</span><span class="kbd">A</span><span class="kbd">S</span><span class="kbd">D</span>
+  <span style="font-size:11px;color:var(--muted)">行走</span>
+  <span style="color:var(--line)">|</span>
+  <span style="font-size:11px;color:var(--muted)">拖动鼠标环视</span>
+  <button id="btnStreetExit">退出街景</button>
+</div>
+<div class="photo-lightbox" id="lightbox"><img id="lightboxImg" alt="实景照片"></div>
+
+<div id="labels"></div>
+<div id="loading"><div class="spin"></div><div>正在加载三维校区模型…</div></div>
+
+<script>
+window.addEventListener('error', function(e){
+  var l=document.getElementById('loading');
+  if(l && l.style.display!=='none') l.innerHTML='<div style="max-width:70%;text-align:center;color:#b42318">加载出错：'+(e.message||'未知错误')+'</div>';
+});
+window.addEventListener('unhandledrejection', function(e){
+  var l=document.getElementById('loading');
+  if(l && l.style.display!=='none') l.innerHTML='<div style="max-width:70%;text-align:center;color:#b42318">加载出错：'+((e.reason&&e.reason.message)||e.reason||'未知错误')+'</div>';
+});
+</script>
+<script>
+// 供实景地图跳转：?id=xxx 时自动选中并聚焦该楼
+window.__jumpId = new URLSearchParams(location.search).get('id') || '';
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const $ = (s) => document.querySelector(s);
+const loading = $('#loading');
+const labelLayer = $('#labels');
+let META = null;
+let metaLoaded = false;
+let exteriorRoot = null, interiorRoot = null;
+let selectedId = null, interiorId = null;
+let mapPinsReady = false;
+const extByBuilding = new Map();
+const intByBuilding = new Map();   // id -> {root:Object3D, floors:Map<level,Object3D>}
+let activeFloor = 0;               // currently shown floor in interior mode
+const FLOOR_H = 4.0;               // modeled floor height
+const EXPLODE_GAP = 11.0;          // exploded-view spacing between floors
+function applyExplode(rec, on){
+  if(!rec) return;
+  for(const [lv, fl] of rec.floors){
+    fl.position.y = on ? lv*(EXPLODE_GAP-FLOOR_H) : 0;
+  }
+}
+const labels = [];
+let showLabels = true;
+
+// ---------- Three.js base ----------
+const canvas = $('#scene3d');
+let renderer, webglOK=true;
+try{
+  renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+}catch(e){
+  // WebGL 不可用的降级：保留完整 UI 与实景画廊，仅三维画布不可用
+  webglOK=false;
+  renderer={setPixelRatio(){},setSize(){},render(){},domElement:canvas,
+    outputColorSpace:null,toneMapping:null,toneMappingExposure:1};
+  console.warn('WebGL 不可用，已切换到降级模式：',e.message);
+}
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xe9f1f8);
+scene.fog = new THREE.Fog(0xe9f1f8, 1200, 2600);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 1, 6000);
+camera.position.set(180, 900, 1150);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.target.set(-40, 0, -120);
+controls.minDistance = 30;
+controls.maxDistance = 2200;
+controls.maxPolarAngle = Math.PI * 0.485;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0xa8b8c8, 2.0));
+const sun = new THREE.DirectionalLight(0xfff3df, 2.2);
+sun.position.set(400, 800, 300);
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xbcd8ff, 0.6);
+fill.position.set(-500, 400, -400);
+scene.add(fill);
+
+let camTween = null;
+function flyTo(pos, target, ms=900){
+  camTween = {fromP:camera.position.clone(), toP:new THREE.Vector3(...pos),
+              fromT:controls.target.clone(), toT:new THREE.Vector3(...target),
+              t0:performance.now(), dur:ms};
+}
+function updateTween(){
+  if(!camTween) return;
+  const k = Math.min(1, (performance.now()-camTween.t0)/camTween.dur);
+  const e = k<0.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2;
+  camera.position.lerpVectors(camTween.fromP, camTween.toP, e);
+  controls.target.lerpVectors(camTween.fromT, camTween.toT, e);
+  if(k>=1) camTween=null;
+}
+
+const boxHelper = new THREE.Box3Helper(new THREE.Box3(
+  new THREE.Vector3(0,0,0), new THREE.Vector3(1,1,1)), 0xe07a00);
+boxHelper.material.depthTest = false;
+boxHelper.visible = false;
+scene.add(boxHelper);
+
+// ---------- load assets ----------
+const loader = new GLTFLoader();
+let loaded = 0;
+function matchBuildingId(name){
+  // ids may contain underscores (e.g. dorm_0_0); match against known ids, longest first
+  if(!META) return null;
+  const ids = META.buildings.map(b=>b.id);
+  let stem = name.replace(/^(B_|INT_|FL_|IN_)/,'');
+  let best=null;
+  for(const id of ids){
+    if(stem===id || stem.startsWith(id+'_') || stem.startsWith(id)){
+      if(!best || id.length>best.length) best=id;
+    }
+  }
+  return best;
+}
+function buildIndexes(){
+  // exterior meshes -> building id
+  if(exteriorRoot) exteriorRoot.traverse(o=>{
+    if(!o.isMesh) return;
+    const m=/^B_([^_]+)/.exec(o.name);
+    const id=matchBuildingId(o.name);
+    if(id){
+      if(!extByBuilding.has(id)) extByBuilding.set(id, []);
+      extByBuilding.get(id).push(o);
+      o.userData.buildingId=id;
+    }
+  });
+  // interior: INT_<id> roots + FL_<id>_<lv> floors
+  if(interiorRoot){
+    interiorRoot.traverse(o=>{
+      const m=/^INT_/.exec(o.name);
+      if(m){ const id=matchBuildingId(o.name); if(id && !intByBuilding.has(id)) intByBuilding.set(id,{root:o,floors:new Map()}); }
+    });
+    interiorRoot.traverse(o=>{
+      const m=/^FL_/.exec(o.name);
+      if(m){
+        const id=matchBuildingId(o.name);
+        const lvm=/_(\d+)$/.exec(o.name);
+        if(id && lvm){
+          const rec=intByBuilding.get(id);
+          if(rec) rec.floors.set(parseInt(lvm[1]), o);
+        }
+      }
+    });
+    for(const rec of intByBuilding.values()){
+      rec.root.visible=false;
+      for(const fl of rec.floors.values()) fl.visible=true;
+    }
+  }
+}
+function maybeInit(){
+  if(loaded===2 && metaLoaded){
+    buildIndexes(); loading.style.display='none'; initUI();
+    if(!webglOK){
+      labelLayer.style.display='none';
+      const tip=document.createElement('div');
+      tip.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:8;'+
+        'background:rgba(255,255,255,.95);border:1px solid #e2c9a0;border-radius:14px;padding:20px 26px;'+
+        'max-width:420px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.18);color:#6b4a1f;font-size:13px;line-height:1.8';
+      tip.innerHTML='<b style="font-size:15px">三维视图暂不可用</b><br>当前环境未启用 WebGL，三维模型无法渲染。<br>'+
+        '你仍可使用左侧<b>点位速览</b>、<b>实景打卡</b>与<b>照片墙</b>浏览校园实景。';
+      document.body.appendChild(tip);
+    }
+  }
+}
+loader.load('./../output/campus_exterior.glb', g=>{
+  exteriorRoot = g.scene; scene.add(exteriorRoot);
+  loaded++; maybeInit();
+}, undefined, e=>{ loading.innerHTML='<div>外观模型加载失败：'+e.message+'</div>'; });
+
+loader.load('./../output/campus_interiors.glb', g=>{
+  interiorRoot = g.scene; scene.add(interiorRoot);
+  loaded++; maybeInit();
+}, undefined, e=>{ loading.innerHTML='<div>内部模型加载失败：'+e.message+'</div>'; });
+
+fetch('./buildings.json').then(r=>r.json()).then(d=>{
+  META=d; metaLoaded=true; maybeInit();
+}).catch(e=>{ loading.innerHTML='<div>建筑数据加载失败：'+e.message+'</div>'; });
+
+// ---------- picking ----------
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+let downX=0, downY=0;
+canvas.addEventListener('pointerdown', e=>{ downX=e.clientX; downY=e.clientY; });
+canvas.addEventListener('pointerup', e=>{
+  if(Math.hypot(e.clientX-downX, e.clientY-downY)>6) return;
+  pointer.x = (e.clientX/innerWidth)*2-1;
+  pointer.y = -(e.clientY/innerHeight)*2+1;
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(exteriorRoot?[exteriorRoot]:[], true);
+  for(const h of hits){
+    if(h.object.userData.buildingId){ selectBuilding(h.object.userData.buildingId); return; }
+  }
+});
+
+// 实景照片按画面实际内容映射（楼体题字/招牌已逐张核对，非按文件名猜测）。
+// 注意：现有素材中没有可确认的宿舍楼照片，宿舍建筑不挂教学楼图片，改显示校园全景。
+const REAL_PHOTOS = {
+  library:[{src:'./realphotos/lib_front2.jpg',cap:'图书馆正立面（石匾题"图书馆"）· 实景'},
+           {src:'./realphotos/lib_lake.jpg',cap:'图书馆与湖畔垂柳 · 实景'},
+           {src:'./realphotos/lib_tulip.jpg',cap:'图书馆前春季郁金香 · 实景'},
+           {src:'./realphotos/library_aerial.jpg',cap:'图书馆与环湖水系航拍 · 官网图片'}],
+  teaching:[{src:'./realphotos/dorm2.jpg',cap:'文韬楼 · 第一教学楼（门楣题字）· 实景'},
+            {src:'./realphotos/dorm3.jpg',cap:'文锦楼 · 第二教学楼（门厅题字）· 实景'},
+            {src:'./realphotos/building_gray.jpg',cap:'建树楼（楼体竖排题字）· 实景'},
+            {src:'./realphotos/dorm.jpg',cap:'灰砖格栅教学楼与白玉兰 · 实景'}],
+  office:[{src:'./realphotos/teaching.jpg',cap:'办公楼（玻璃门厅+电子屏，原误标教学楼）· 实景'},
+          {src:'./realphotos/zhixing.jpg',cap:'知行楼（橙红格栅立面）· 实景'}],
+  lab:[{src:'./realphotos/zhixing.jpg',cap:'知行楼：橙红格栅 + 灰砖立面 · 实景'}],
+  canteen:[{src:'./realphotos/canteen2.jpg',cap:'第三食堂（楼体竖排题字）· 实景'},
+           {src:'./realphotos/gate2.jpg',cap:'第二食堂 · 知味轩餐厅（原误标校门）· 实景'}],
+  gate:[{src:'./realphotos/south_gate.jpg',cap:'郑东校区南门 · 实景'},
+        {src:'./realphotos/clocktower.jpg',cap:'校园钟塔 · 实景'}],
+  lake:[{src:'./realphotos/lib_lake.jpg',cap:'明湖畔的图书馆 · 实景'},
+        {src:'./realphotos/lake2.jpg',cap:'明湖水面与倒影 · 实景'},
+        {src:'./realphotos/lake_pavilion.jpg',cap:'湖畔亭榭与樱花 · 官网图片'},
+        {src:'./realphotos/waterfall.jpg',cap:'弘毅山瀑布近景 · 实景'},
+        {src:'./realphotos/rockery.jpg',cap:'弘毅山瀑布远景 · 实景'}],
+  campus:[{src:'./realphotos/axis_front.jpg',cap:'校园中轴线航拍全景 · 官网图片'},
+          {src:'./realphotos/campus_path.jpg',cap:'校园林荫步道 · 官网图片'}]
+};
+function photosFor(b){
+  if(!b) return [];
+  if(b.kind==='library'||b.id==='p07') return REAL_PHOTOS.library;
+  if(b.kind==='canteen'||/食堂|餐厅/.test(b.name||'')) return REAL_PHOTOS.canteen;
+  if(/书院|公寓|宿舍/.test(b.name||'')) return REAL_PHOTOS.campus; // 无可确认宿舍实景，不误挂教学楼
+  if(b.kind==='lab'||/实验|知行/.test(b.name||'')) return REAL_PHOTOS.lab;
+  if(b.id==='p12'||/建树/.test(b.name||'')) return [REAL_PHOTOS.teaching[2]];
+  if(b.kind==='classroom'||/教学|文韬|文锦/.test(b.name||'')) return REAL_PHOTOS.teaching;
+  if(b.kind==='office'||/行政|至善|办公/.test(b.name||'')) return REAL_PHOTOS.office;
+  if(b.kind==='gate') return REAL_PHOTOS.gate;
+  return REAL_PHOTOS.campus;
+}
+
+// ---------- 实景照片轮播查看器 ----------
+let vpList=[], vpIndex=0;
+function renderViewer(list){
+  vpList=list||[]; vpIndex=0;
+  const img=$('#vpImg'), thumbs=$('#vpThumbs'), cnt=$('#vpCount'), cap=$('#vpCap');
+  if(!vpList.length){ $('#realPhoto').style.display='none'; return; }
+  $('#realPhoto').style.display='block';
+  thumbs.innerHTML=vpList.map((p,i)=>'<img src="'+p.src+'" data-i="'+i+'" alt="">').join('');
+  thumbs.querySelectorAll('img').forEach(t=>t.onclick=()=>showVp(parseInt(t.dataset.i)));
+  $('#vpPrev').onclick=()=>showVp((vpIndex-1+vpList.length)%vpList.length);
+  $('#vpNext').onclick=()=>showVp((vpIndex+1)%vpList.length);
+  img.onclick=()=>{ $('#lightboxImg').src=img.src; $('#lightbox').classList.add('show'); };
+  showVp(0);
+}
+function showVp(i){
+  if(!vpList.length) return;
+  vpIndex=(i+vpList.length)%vpList.length;
+  const p=vpList[vpIndex];
+  const img=$('#vpImg');
+  img.style.opacity='.35';
+  const pre=new Image(); pre.onload=()=>{ img.src=p.src; img.style.opacity='1'; }; pre.src=p.src;
+  $('#vpCount').textContent=(vpIndex+1)+' / '+vpList.length;
+  $('#vpCap').textContent=p.cap;
+  $('#vpThumbs').querySelectorAll('img').forEach((t,k)=>t.classList.toggle('on',k===vpIndex));
+  const on=$('#vpThumbs').querySelector('img.on');
+  if(on&&on.scrollIntoView) on.scrollIntoView({block:'nearest',inline:'center'});
+}
+
+// ---------- 云上财大：点位速览侧栏 ----------
+// 每个点位 = 图标 + 名称 + 说明；建筑点位点击聚焦建筑，景观点位点击飞到坐标并切换实景
+const SPOTS=[
+  {grp:'核心地标'},
+  {id:'p07', ic:'📚', name:'图书馆', sub:'校园地标 · 大挑檐', k:'b'},
+  {id:'pDX_A', ic:'🚀', name:'鼎新楼·科创中心', sub:'大学生科创中心/文创中心', k:'b'},
+  {id:'pDX_B', ic:'🏙️', name:'鼎新楼B座', sub:'大学生科创中心', k:'b'},
+  {id:'p12', ic:'🏛️', name:'建树楼', sub:'校友捐资教学楼', k:'b'},
+  {id:'p00', ic:'🏢', name:'至善楼', sub:'综合办公楼', k:'b'},
+  {grp:'教学科研'},
+  {id:'p02', ic:'🎓', name:'文韬楼', sub:'第一教学楼', k:'b'},
+  {id:'p01', ic:'📖', name:'文锦楼', sub:'第二教学楼', k:'b'},
+  {id:'p13', ic:'🔬', name:'博文楼', sub:'教学科研楼', k:'b'},
+  {id:'pZX', ic:'⚗️', name:'知行楼', sub:'综合实验楼', k:'b'},
+  {id:'p30', ic:'🏟️', name:'体育训练馆', sub:'北部综合楼', k:'b'},
+  {grp:'书院生活'},
+  {id:'pDXSY', ic:'🏠', name:'笃行书院·馨苑', sub:'西运动场东侧', k:'b'},
+  {id:'pXINY', ic:'🏡', name:'新苑', sub:'学生公寓', k:'b'},
+  {id:'pGX', ic:'🧰', name:'教职工活动中心', sub:'躬行楼', k:'b'},
+  {id:'pSHOP2', ic:'🛍️', name:'第二商业街', sub:'生活服务街区', k:'b'},
+  {id:'pSHOP1', ic:'🏪', name:'第一商业街', sub:'第一食堂旁', k:'b'},
+  {grp:'食堂餐饮'},
+  {id:'p04', ic:'🍚', name:'第一食堂', sub:'教学楼附近', k:'b'},
+  {id:'p17', ic:'🍜', name:'第二餐厅', sub:'笃行书院旁', k:'b'},
+  {id:'p19', ic:'🍲', name:'第三餐厅', sub:'综合运动场附近', k:'b'},
+  {grp:'四门 · 打卡'},
+  {id:'pGateN', ic:'🚪', name:'北门', sub:'校区北门', k:'b'},
+  {id:'pGateS', ic:'🚪', name:'南门', sub:'校区南门 · 钟塔', k:'b'},
+  {id:'pGateE', ic:'🚪', name:'东门', sub:'校区东门', k:'b'},
+  {id:'pGateW', ic:'🚪', name:'西门', sub:'校区西门', k:'b'},
+  {id:'lake', ic:'🌊', name:'明湖鉴湖', sub:'湖光山色', k:'s', pos:[120,40,120], photos:'lake'},
+  {id:'waterfall', ic:'💦', name:'思源瀑布', sub:'校园水景', k:'s', pos:[150,30,150], photos:'waterfall'},
+  {id:'rockery', ic:'⛰️', name:'弘毅山', sub:'假山石景', k:'s', pos:[180,30,120], photos:'rockery'},
+  {id:'gate', ic:'📷', name:'南门钟塔 · 实景', sub:'校门实景照片', k:'s', pos:[-95,40,651], photos:'gate'},
+];
+const SCENIC_PHOTOS={
+  lake:[{src:'./realphotos/lib_lake.jpg',cap:'图书馆与明湖 · 实景'},
+        {src:'./realphotos/lake_big.jpg',cap:'明湖全景 · 实景'},
+        {src:'./realphotos/lake2.jpg',cap:'湖面倒影 · 实景'},
+        {src:'./realphotos/lake_pavilion.jpg',cap:'湖畔亭榭与樱花 · 实景'}],
+  waterfall:[{src:'./realphotos/waterfall.jpg',cap:'思源瀑布 · 实景'},
+             {src:'./realphotos/waterfall2.jpg',cap:'瀑布近景 · 实景'}],
+  rockery:[{src:'./realphotos/rockery.jpg',cap:'弘毅山与湖石 · 实景'},
+           {src:'./realphotos/rockery2.jpg',cap:'假山细部 · 实景'}],
+  gate:[{src:'./realphotos/south_gate.jpg',cap:'郑东校区南门 · 实景'},
+        {src:'./realphotos/clocktower.jpg',cap:'钟塔与拱廊 · 实景'},
+        {src:'./realphotos/gate_close.jpg',cap:'校门细部 · 实景'}]
+};
+function buildSpotNav(){
+  const box=$('#spotList'); if(!box) return;
+  box.innerHTML='';
+  for(const s of SPOTS){
+    if(s.grp){ const g=document.createElement('div'); g.className='grp'; g.textContent=s.grp; box.appendChild(g); continue; }
+    const el=document.createElement('div'); el.className='spot'; el.dataset.id=s.id;
+    el.innerHTML='<div class="ic">'+s.ic+'</div><div class="tx"><b>'+s.name+'</b><small>'+s.sub+'</small></div>';
+    el.onclick=()=>goSpot(s);
+    box.appendChild(el);
+  }
+  $('#spotCollapse').onclick=()=>{ const n=$('#spotNav'); n.classList.toggle('collapsed');
+    $('#spotCollapse').querySelector('span').textContent=n.classList.contains('collapsed')?'▶':'◀'; };
+  buildScenicBar();
+}
+function markSpotActive(id){
+  document.querySelectorAll('#spotList .spot').forEach(e=>e.classList.toggle('active',e.dataset.id===id));
+}
+function goSpot(s){
+  if(streetMode) exitStreet();
+  if(s.k==='b'){
+    const b=META&&META.buildings.find(x=>x.id===s.id);
+    if(!b) return;
+    selectBuilding(s.id);
+    flyTo([b.x+150,b.height+95,-b.y+175],[b.x,b.height/2,-b.y],900);
+    markSpotActive(s.id);
+  }else{
+    // 景观点位：飞到坐标 + 切换实景画廊
+    $('#info').classList.remove('show'); boxHelper.visible=false; selectedId=null;
+    exitInterior(true);
+    const [x,y,z]=s.pos;
+    flyTo([x+70,y+55,z+85],[x,y*0.4,z],900);
+    renderViewer(SCENIC_PHOTOS[s.photos]||[]);
+    $('#iName').textContent=s.name; $('#iKind').textContent='实景打卡 · '+s.sub;
+    $('#iDesc').textContent='校园实景打卡点。下方为公开渠道采集的实景照片，可点击缩略图或左右箭头切换，点击大图放大查看。';
+    $('#iInterior').textContent='实景打卡模式——拖动可旋转三维视角，照片展示该处真实样貌。';
+    $('#iMeta').textContent='云上财大 · 实景导览';
+    $('#floors').classList.remove('show'); $('#modeTip').style.display='none';
+    $('#btnInside').textContent='实景照片墙'; $('#btnInside').className='';
+    $('#btnInside').onclick=()=>{ location.href='./gallery.html'; };
+    $('#info').classList.add('show');
+    markSpotActive(s.id);
+    document.querySelectorAll('#scenicBar button').forEach(b=>b.classList.toggle('on',b.dataset.id===s.id));
+  }
+}
+function buildScenicBar(){
+  const bar=$('#scenicBar'); if(!bar) return;
+  const scenic=SPOTS.filter(s=>s.k==='s');
+  bar.innerHTML=scenic.map(s=>'<button data-id="'+s.id+'">'+s.ic+' '+s.name+'</button>').join('')+
+    '<button data-id="all" style="background:var(--brand2);border-color:var(--brand2);color:#fff">📷 全部照片</button>';
+  bar.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{
+    if(btn.dataset.id==='all'){ location.href='./gallery.html'; return; }
+    const s=SPOTS.find(x=>x.id===btn.dataset.id); if(s) goSpot(s);
+  });
+}
+$('#lightbox').onclick=()=>$('#lightbox').classList.remove('show');
+
+// ---------- UI ----------
+function kindText(k){
+  return ({library:'图书馆',office:'办公 / 行政',classroom:'教学',lab:'实验 / 科研',
+    canteen:'餐饮',dorm:'学生公寓',museum:'文化展陈',gym:'体育',activity:'学生活动'})[k] || k;
+}
+function selectBuilding(id){
+  if(interiorId && interiorId!==id) exitInterior(true);
+  const b = META && META.buildings.find(x=>x.id===id);
+  if(!b) return;
+  selectedId = id;
+  $('#iName').textContent = b.name;
+  $('#iKind').textContent = kindText(b.kind) + ' · ' + b.floors + ' 层';
+  $('#iDesc').textContent = b.desc;
+  $('#iInterior').textContent = b.interior;
+  renderViewer(photosFor(b));
+  $('#iMeta').textContent = '位置：' + b.lat.toFixed(6) + '°N, ' + b.lon.toFixed(6) + '°E　|　高度约 ' + b.height + ' m';
+  $('#btnInside').textContent = interiorId===id ? '返回外观视角' : '进入内部查看';
+  $('#btnInside').className = interiorId===id ? 'warn' : 'primary';
+  // 恢复建筑模式下的内部按钮行为
+  $('#btnInside').onclick=()=>{ if(!selectedId) return; interiorId===selectedId?exitInterior():enterInterior(selectedId); };
+  markSpotActive(id);
+  if($('#scenicBar')) $('#scenicBar').classList.remove('show');
+  $('#info').classList.add('show');
+  $('#modeTip').style.display = interiorId===id ? 'block' : 'none';
+  const floors = $('#floors');
+  floors.innerHTML = '';
+  floors.classList.toggle('show', interiorId===id && b.floors>1);
+  for(let f=0; f<b.floors; f++){
+    const btn=document.createElement('button');
+    btn.textContent=(f+1)+'F';
+    btn.className = (f===activeFloor)?'primary':'';
+    btn.dataset.floor=f;
+    btn.onclick=()=>showFloor(id, f);
+    floors.appendChild(btn);
+  }
+  // "all floors" toggle
+  const allBtn=document.createElement('button');
+  allBtn.textContent='全部楼层';
+  allBtn.className = (activeFloor<0)?'primary':'';
+  allBtn.onclick=()=>showFloor(id, -1);
+  allBtn.dataset.floor='-1';
+  floors.appendChild(allBtn);
+  const meshes = extByBuilding.get(id)||[];
+  const body = meshes.find(o=>o.name.endsWith('_body')) || meshes[0];
+  if(body && interiorId!==id){
+    boxHelper.box.copy(new THREE.Box3().setFromObject(body));
+    boxHelper.visible = true;
+  } else {
+    boxHelper.visible = false;
+  }
+  for(const [lid, el] of labels) el.classList.toggle('hot', lid===id);
+  updateMarkers();
+}
+function showFloor(id, f){
+  const rec = intByBuilding.get(id);
+  activeFloor = f;
+  if(rec){
+    for(const [lv, fl] of rec.floors) fl.visible = (f<0 || lv===f);
+    // exploded view only in "all floors" mode; single floor collapses back down
+    applyExplode(rec, f<0);
+  }
+  // highlight buttons
+  $('#floors').querySelectorAll('button').forEach(btn=>{
+    btn.classList.toggle('primary', parseInt(btn.dataset.floor)===f);
+  });
+  const b=META&&META.buildings.find(x=>x.id===id);
+  if(b){
+    const gz=-b.y;
+    if(f<0){
+      // all floors: exploded cutaway, pull back to see the whole stack
+      const topY=(b.floors-1)*EXPLODE_GAP;
+      flyTo([b.x+120, topY*0.6+55, gz+150],[b.x, topY*0.5, gz],750);
+    }else{
+      // single floor: close view at that level (collapsed position)
+      const z=f*FLOOR_H;
+      flyTo([b.x+68, z+30, gz+82],[b.x, z+1.2, gz],650);
+    }
+  }
+}
+function enterInterior(id){
+  const b = META && META.buildings.find(x=>x.id===id);
+  const rec = intByBuilding.get(id);
+  if(!b || !b.hasInterior || !rec){ alert('该建筑暂无内部示意模型'); return; }
+  interiorId = id;
+  // hide this building's exterior, show its interior group
+  (extByBuilding.get(id)||[]).forEach(o=>o.visible=false);
+  rec.root.visible=true;
+  for(const fl of rec.floors.values()) fl.visible=true;
+  activeFloor=-1; // show all floors by default (exploded)
+  applyExplode(rec, true);
+  boxHelper.visible=false;
+  const gz=-b.y;
+  const topY=(b.floors-1)*EXPLODE_GAP;
+  // fly to a high 3/4 exploded view so every floor's furniture is visible
+  flyTo([b.x+120, topY*0.6+55, gz+150], [b.x, topY*0.5, gz], 1000);
+  selectBuilding(id);
+}
+function exitInterior(silent){
+  if(!interiorId) return;
+  (extByBuilding.get(interiorId)||[]).forEach(o=>o.visible=true);
+  const rec=intByBuilding.get(interiorId);
+  if(rec){ rec.root.visible=false; applyExplode(rec, false); }
+  interiorId=null; activeFloor=0;
+  $('#floors').classList.remove('show');
+  $('#modeTip').style.display='none';
+  if(!silent && selectedId) selectBuilding(selectedId);
+  else { $('#btnInside').textContent='进入内部查看'; $('#btnInside').className='primary'; }
+}
+function resetView(){
+  exitInterior(true);
+  boxHelper.visible=false;
+  $('#info').classList.remove('show');
+  selectedId=null;
+  for(const [lid, el] of labels) el.classList.remove('hot');
+  markSpotActive(null);
+  $('#btnInside').textContent='进入内部查看'; $('#btnInside').className='primary';
+  $('#btnInside').onclick=()=>{ if(!selectedId) return; interiorId===selectedId?exitInterior():enterInterior(selectedId); };
+  flyTo([470,520,640],[0,10,0],900);
+}
+// ---------- street-level walk mode ----------
+let streetMode=false, streetYaw=0, streetPitch=0;
+const streetKeys={};
+const streetPos=new THREE.Vector3();
+const EYE=20;  // elevated eye for pleasant campus walk view
+function enterStreet(){
+  if(!exteriorRoot) return;
+  exitInterior(true);
+  $('#info').classList.remove('show'); boxHelper.visible=false; selectedId=null;
+  streetMode=true;
+  controls.enabled=false;
+  camTween=null;
+  // start on the central axis road south of library, looking north toward library
+  // world z = (py-312.5)*RES17 (matches gz=-b.y used elsewhere)
+  streetPos.set(-86, EYE, -60);
+  streetYaw=0.6;   // face library from north plaza
+  streetPitch=-0.03;
+  applyStreetCam();
+  $('#streetUI').classList.add('show');
+  $('#btnStreet').textContent='退出街景'; $('#btnStreet').className='warn';
+  $('#hint').style.display='none';
+  labelLayer.style.display='none';
+}
+function exitStreet(){
+  streetMode=false;
+  controls.enabled=true;
+  $('#streetUI').classList.remove('show');
+  $('#btnStreet').textContent='街景漫游'; $('#btnStreet').className='primary';
+  labelLayer.style.display=showLabels?'block':'none';
+  resetView();
+}
+function applyStreetCam(){
+  camera.position.copy(streetPos);
+  const dir=new THREE.Vector3(
+    Math.sin(streetYaw)*Math.cos(streetPitch),
+    Math.sin(streetPitch),
+    Math.cos(streetYaw)*Math.cos(streetPitch));
+  controls.target.copy(streetPos).add(dir.multiplyScalar(50));
+  camera.lookAt(controls.target);
+}
+// keyboard walk
+window.addEventListener('keydown',e=>{
+  if(!streetMode) return;
+  streetKeys[e.key.toLowerCase()]=true;
+  if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(e.key.toLowerCase())) e.preventDefault();
+});
+window.addEventListener('keyup',e=>{ streetKeys[e.key.toLowerCase()]=false; });
+// mouse drag to look around in street mode
+let streetDrag=null;
+canvas.addEventListener('pointerdown',e=>{ if(streetMode) streetDrag={x:e.clientX,y:e.clientY}; });
+canvas.addEventListener('pointermove',e=>{
+  if(!streetMode||!streetDrag) return;
+  streetYaw-=(e.clientX-streetDrag.x)*0.004;
+  streetPitch=Math.max(-0.9,Math.min(0.9, streetPitch-(e.clientY-streetDrag.y)*0.003));
+  streetDrag={x:e.clientX,y:e.clientY};
+  applyStreetCam();
+});
+window.addEventListener('pointerup',()=>{ streetDrag=null; });
+function updateStreet(dt){
+  if(!streetMode) return;
+  const sp=90*dt;  // walk speed
+  const fwd=new THREE.Vector3(Math.sin(streetYaw),0,Math.cos(streetYaw));
+  const right=new THREE.Vector3(Math.cos(streetYaw),0,-Math.sin(streetYaw));
+  if(streetKeys['w']||streetKeys['arrowup']) streetPos.addScaledVector(fwd,sp);
+  if(streetKeys['s']||streetKeys['arrowdown']) streetPos.addScaledVector(fwd,-sp);
+  if(streetKeys['a']||streetKeys['arrowleft']) streetPos.addScaledVector(right,-sp);
+  if(streetKeys['d']||streetKeys['arrowright']) streetPos.addScaledVector(right,sp);
+  streetPos.y=EYE;
+  applyStreetCam();
+}
+
+function initUI(){
+  // 品牌栏时钟
+  const clk=$('#clock');
+  const tick=()=>{ if(clk) clk.textContent=new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}); };
+  tick(); setInterval(tick,30000);
+  buildSpotNav();
+  $('#btnInside').onclick=()=>{ if(!selectedId) return; interiorId===selectedId?exitInterior():enterInterior(selectedId); };
+  $('#btnScenic').onclick=()=>{
+    const bar=$('#scenicBar'); bar.classList.toggle('show');
+    $('#btnScenic').classList.toggle('primary',bar.classList.contains('show'));
+  };
+  $('#btnFocus').onclick=()=>{
+    const b=META&&META.buildings.find(x=>x.id===selectedId); if(!b) return;
+    flyTo([b.x+180, b.height+120, -b.y+210],[b.x,b.height/2,-b.y],800);
+  };
+  $('#btnClose').onclick=()=>{ exitInterior(true); $('#info').classList.remove('show'); boxHelper.visible=false; selectedId=null; };
+  $('#btnReset').onclick=()=>{ if(streetMode) exitStreet(); else resetView(); };
+  $('#btnStreet').onclick=()=>{ streetMode?exitStreet():enterStreet(); };
+  $('#btnStreetExit').onclick=exitStreet;
+  $('#btnLabels').onclick=()=>{
+    showLabels=!showLabels;
+    labelLayer.style.display=showLabels?'block':'none';
+    $('#btnLabels').textContent=showLabels?'隐藏标注':'显示标注';
+  };
+  $('#btnExterior').onclick=()=>{ exitInterior(true); };
+  $('#btnMap').onclick=()=>{
+    const p=$('#mapPanel'); p.classList.toggle('collapsed');
+    $('#btnMapToggle').textContent=p.classList.contains('collapsed')?'展开':'收起';
+  };
+  $('#btnMapToggle').onclick=()=>{
+    const p=$('#mapPanel'); p.classList.toggle('collapsed');
+    $('#btnMapToggle').textContent=p.classList.contains('collapsed')?'展开':'收起';
+  };
+  $('#btnGallery').onclick=()=>{ location.href='./gallery.html'; };
+  $('#btnSat').onclick=()=>{ mapVecMode?setMapVec(false):setMapVec(true); };
+  buildLabels();
+  initMap();
+}
+
+// ---------- labels ----------
+function buildLabels(){
+  if(!META) return;
+  labelLayer.innerHTML='';
+  labels.length=0;
+  for(const b of META.buildings){
+    const isDorm=b.kind==='dorm';
+    // 宿舍楼栋密集，仅显示一个汇总标签，避免文字堆叠
+    if(isDorm && b.id!=='p11') continue;
+    const el=document.createElement('div');
+    el.className='label';
+    el.textContent = b.id==='p11' ? '书院宿舍区' : b.name.replace(/（.*?）/g,'');
+    labelLayer.appendChild(el);
+    labels.push([b.id, el, new THREE.Vector3(b.x, b.height+16, -b.y)]);
+  }
+}
+const proj=new THREE.Vector3();
+const labelBoxes=[];
+function updateLabels(){
+  if(!showLabels) return;
+  labelBoxes.length=0;
+  for(const [id,el,pos] of labels){
+    proj.copy(pos).project(camera);
+    const visible = proj.z<1 && proj.x>-1.1 && proj.x<1.1 && proj.y>-1.1 && proj.y<1.1;
+    if(!visible){ el.style.display='none'; continue; }
+    const sx=((proj.x+1)/2)*innerWidth, sy=((-proj.y+1)/2)*innerHeight;
+    // 碰撞检测：与已放置标签过近则隐藏（图书馆等地标高楼优先，因label按buildings顺序，library在dorm后，故用宽度判定）
+    const w=el.offsetWidth||70, h=18;
+    let overlap=false;
+    for(const bx of labelBoxes){
+      if(Math.abs(sx-bx.x)<(w+bx.w)/2+4 && Math.abs(sy-bx.y)<h+4){ overlap=true; break; }
+    }
+    if(overlap){ el.style.display='none'; continue; }
+    labelBoxes.push({x:sx,y:sy,w:w});
+    el.style.display='block';
+    el.style.left=sx+'px';
+    el.style.top=sy+'px';
+  }
+}
+
+// ---------- satellite locator (offline, no API key) ----------
+function svgPin(color){
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="30" viewBox="0 0 24 30">'+
+    '<path d="M12 0C5.4 0 0 5.4 0 12c0 8.4 12 18 12 18s12-9.6 12-18C24 5.4 18.6 0 12 0z" fill="'+color+'" stroke="#fff" stroke-width="2"/>'+
+    '<circle cx="12" cy="12" r="4" fill="#fff"/></svg>');
+}
+// 官方平面图 1100x1220，1.09 m/px，已与建筑坐标精确配准。
+// 建筑坐标 b.x/b.y 以图书馆为原点（米，y 向北为正）→ 归一化到图片位置。
+const IMG_W = 1100, IMG_H = 1220;      // 规划图裁剪尺寸
+const METERS_PER_PX = 1.09;            // 规划图 米/像素
+const PLAN_LIB_X = 477, PLAN_LIB_Y = 774; // 图书馆在规划图中的像素位置（原点）
+let mapPins = new Map();
+let mapCanvas=null, mapZoom=1, mapPanX=0, mapPanY=0, mapVecMode=false;
+const GRID_M = 100;   // 网格刻度间距(米)
+
+// 世界坐标(米, 图书馆为原点, y向北) → 平面图像素坐标
+function w2p(x,y){ return [PLAN_LIB_X + x/METERS_PER_PX, PLAN_LIB_Y - y/METERS_PER_PX]; }
+function escXml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// 矢量覆盖层: 100m网格刻度 + 建筑矢量轮廓 + 建筑名(放大才显示)
+function buildVecSVG(){
+  if(!META) return '';
+  const S=[], step=GRID_M/METERS_PER_PX;   // 100m ≈ 91.7px
+  for(let k=-16;k<=16;k++){
+    const gx=PLAN_LIB_X+k*step;
+    if(gx>0 && gx<IMG_W){
+      const major=(k%5===0);
+      S.push('<line class="grid'+(major?' major':'')+'" x1="'+gx.toFixed(1)+'" y1="0" x2="'+gx.toFixed(1)+'" y2="'+IMG_H+'"/>');
+      if(major) S.push('<text class="gtick" x="'+(gx+4).toFixed(1)+'" y="22">'+escXml((k>0?'东':k<0?'西':'')+Math.abs(k*GRID_M)+'m')+'</text>');
+    }
+    const gy=PLAN_LIB_Y-k*step;
+    if(gy>0 && gy<IMG_H){
+      const major=(k%5===0);
+      S.push('<line class="grid'+(major?' major':'')+'" x1="0" y1="'+gy.toFixed(1)+'" x2="'+IMG_W+'" y2="'+gy.toFixed(1)+'"/>');
+      if(major) S.push('<text class="gtick" x="8" y="'+(gy-6).toFixed(1)+'">'+escXml((k>0?'北':k<0?'南':'')+Math.abs(k*GRID_M)+'m')+'</text>');
+    }
+  }
+  for(const b of META.buildings){
+    if(!b.pts || b.pts.length<3) continue;
+    const pts=b.pts.map(p=>{const q=w2p(p[0],p[1]);return q[0].toFixed(1)+','+q[1].toFixed(1);}).join(' ');
+    S.push('<polygon class="bldg '+(b.kind||'')+'" data-id="'+escXml(b.id)+'" points="'+pts+'"><title>'+escXml(b.name)+'</title></polygon>');
+  }
+  for(const b of META.buildings){
+    if(b.kind==='dorm') continue;
+    const q=w2p(b.x,b.y);
+    S.push('<text class="bname" x="'+q[0].toFixed(1)+'" y="'+(q[1]-7).toFixed(1)+'">'+escXml(b.name.replace(/（.*?）/g,''))+'</text>');
+  }
+  return '<svg class="veclayer" viewBox="0 0 '+IMG_W+' '+IMG_H+'" preserveAspectRatio="none">'+S.join('')+'</svg>';
+}
+
+function layoutMap(){
+  const box=$('#map'); if(!box||!mapCanvas) return;
+  const cw=box.clientWidth, ch=box.clientHeight; if(!cw||!ch) return;
+  const s0=Math.max(cw/IMG_W, ch/IMG_H);          // cover 铺满容器
+  mapCanvas.style.width=(IMG_W*s0)+'px';
+  mapCanvas.style.height=(IMG_H*s0)+'px';
+  mapCanvas.style.left=((cw-IMG_W*s0)/2)+'px';
+  mapCanvas.style.top=((ch-IMG_H*s0)/2)+'px';
+  applyMapTransform(s0);
+}
+function applyMapTransform(s0){
+  if(!mapCanvas) return;
+  mapCanvas.style.transform='translate('+mapPanX+'px,'+mapPanY+'px) scale('+mapZoom+')';
+  const box=$('#map');
+  if(s0===undefined) s0=Math.max(box.clientWidth/IMG_W, box.clientHeight/IMG_H);
+  const mPerPx=METERS_PER_PX/(s0*mapZoom || 1);
+  const target=60*mPerPx, pow=Math.pow(10,Math.floor(Math.log10(target)));
+  let best=pow; for(const c of [1,2,5,10]){ if(c*pow<=target) best=c*pow; }
+  const sc=$('#mapScale');
+  if(sc) sc.innerHTML=(best>=1000?(best/1000)+' km':best+' m')+'<span class="sbar" style="width:'+(best/mPerPx).toFixed(0)+'px"></span>';
+}
+function setMapVec(on){
+  mapVecMode=on; mapZoom=on?3:1; mapPanX=0; mapPanY=0;
+  const box=$('#map'); if(box) box.classList.toggle('vec',on);
+  const btn=$('#btnSat'); if(btn) btn.textContent=on?'矢量全图':'放大刻度';
+  applyMapTransform();
+}
+function clampMapPan(){
+  const box=$('#map'); if(!box) return;
+  const s0=Math.max(box.clientWidth/IMG_W, box.clientHeight/IMG_H);
+  const limX=(IMG_W*s0*(mapZoom-1))/2, limY=(IMG_H*s0*(mapZoom-1))/2;
+  mapPanX=Math.max(-limX,Math.min(limX,mapPanX));
+  mapPanY=Math.max(-limY,Math.min(limY,mapPanY));
+}
+function initMap(){
+  const box=$('#map'); if(!box) return;
+  box.innerHTML='<div id="mapCanvas"><img class="satimg" src="./plan_ground.jpg" alt="官方平面图">'+buildVecSVG()+'</div>'+
+    '<div id="compass"><svg viewBox="0 0 30 30" width="30" height="30">'+
+      '<circle cx="15" cy="15" r="14" fill="rgba(255,255,255,.9)" stroke="#9db4c8"/>'+
+      '<path d="M15 3 L19 17 L15 14 L11 17 Z" fill="#c0392b"/>'+
+      '<text x="15" y="27" text-anchor="middle" font-size="9" font-weight="700" fill="#123a5c">N</text></svg></div>'+
+    '<div id="mapScale"></div><div id="mapHint">滚轮缩放 · 拖动平移</div>';
+  mapCanvas=box.querySelector('#mapCanvas');
+  if(!META){ layoutMap(); return; }
+  // pin 放进画布, 与图片/SVG严格同源
+  for(const b of META.buildings){
+    if(b.kind==='dorm' && !/00\$/.test(b.id)) continue;
+    const pin=document.createElement('img');
+    pin.className='mpin'; pin.src=svgPin('#2563a8');
+    pin.dataset.id=b.id;
+    const q=w2p(b.x,b.y);
+    pin.style.left=(q[0]/IMG_W*100)+'%'; pin.style.top=(q[1]/IMG_H*100)+'%';
+    pin.title='点击前往 '+b.name;
+    pin.onclick=(ev)=>{
+      ev.stopPropagation();
+      if(streetMode) exitStreet();
+      selectBuilding(b.id);
+      flyTo([b.x+150,b.height+95,-b.y+175],[b.x,b.height/2,-b.y],900);
+    };
+    mapCanvas.appendChild(pin);
+    mapPins.set(b.id, pin);
+  }
+  mapCanvas.querySelectorAll('.veclayer .bldg').forEach(el=>{
+    el.addEventListener('click',(ev)=>{
+      ev.stopPropagation();
+      const b=META.buildings.find(x=>x.id===el.dataset.id); if(!b) return;
+      if(streetMode) exitStreet();
+      selectBuilding(b.id);
+      flyTo([b.x+150,b.height+95,-b.y+175],[b.x,b.height/2,-b.y],900);
+    });
+  });
+  box.addEventListener('wheel',(ev)=>{
+    ev.preventDefault();
+    mapZoom=Math.max(1,Math.min(10,mapZoom*(ev.deltaY<0?1.25:1/1.25)));
+    const on=mapZoom>1.05; mapVecMode=on;
+    box.classList.toggle('vec',on);
+    const b=$('#btnSat'); if(b) b.textContent=on?'矢量全图':'放大刻度';
+    clampMapPan(); applyMapTransform();
+  },{passive:false});
+  let dragging=false, sx=0, sy=0, px0=0, py0=0;
+  box.addEventListener('pointerdown',(ev)=>{
+    if(ev.target.closest('.mpin')) return;
+    dragging=true; sx=ev.clientX; sy=ev.clientY; px0=mapPanX; py0=mapPanY;
+    box.classList.add('drag'); box.setPointerCapture(ev.pointerId);
+  });
+  box.addEventListener('pointermove',(ev)=>{
+    if(!dragging) return;
+    mapPanX=px0+(ev.clientX-sx); mapPanY=py0+(ev.clientY-sy);
+    clampMapPan(); applyMapTransform();
+  });
+  const endDrag=()=>{ dragging=false; box.classList.remove('drag'); };
+  box.addEventListener('pointerup',endDrag);
+  box.addEventListener('pointercancel',endDrag);
+  layoutMap();
+  updateMarkers();
+}
+function updateMarkers(){
+  for(const [id,pin] of mapPins){
+    const on=id===selectedId;
+    pin.classList.toggle('active',on);
+    pin.src=svgPin(on?'#d97706':'#2563a8');
+  }
+}
+
+addEventListener('resize', ()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+  layoutMap();
+});
+
+let _lastT=performance.now();
+function loop(){
+  requestAnimationFrame(loop);
+  const now=performance.now(); const dt=Math.min(.05,(now-_lastT)/1000); _lastT=now;
+  if(streetMode){ updateStreet(dt); }
+  else { updateTween(); controls.update(); }
+  updateLabels();
+  renderer.render(scene,camera);
+}
+function pickAt(x,y){
+  pointer.x=(x/innerWidth)*2-1; pointer.y=-(y/innerHeight)*2+1;
+  raycaster.setFromCamera(pointer,camera);
+  const hits=raycaster.intersectObjects(exteriorRoot?[exteriorRoot]:[],true);
+  return hits.slice(0,5).map(h=>({name:h.object.name,id:h.object.userData.buildingId||null,d:Math.round(h.distance)}));
+}
+window.__campusDebug = {selectBuilding, enterInterior, exitInterior, showFloor, resetView, pickAt, enterStreet, exitStreet,
+  getMap:()=>null,
+  getPinCount:()=>mapPins.size,
+  getCamera:()=>camera.position.toArray().map(v=>Math.round(v)),
+  getTarget:()=>controls.target.toArray().map(v=>Math.round(v)),
+  getBuildingBox:(id)=>{const ms=extByBuilding.get(id)||[];const box=new THREE.Box3();ms.forEach(o=>box.expandByObject(o));return {min:box.min.toArray().map(v=>Math.round(v)),max:box.max.toArray().map(v=>Math.round(v))};},
+  getInteriorInfo:()=>{
+    const r={};
+    for(const [id,rec] of intByBuilding) r[id]={floors:rec.floors.size,visible:rec.root.visible};
+    return r;
+  },
+  getState:()=>({selectedId, interiorId, activeFloor, labelCount:labels.length})};
+loop();
+// 实景地图跳转：自动选中并在模型加载完成后聚焦该楼
+if(window.__jumpId){
+  setTimeout(()=>{
+    if(META && META.buildings.some(b=>b.id===window.__jumpId)){
+      selectBuilding(window.__jumpId);
+      const b=META.buildings.find(x=>x.id===window.__jumpId);
+      if(b && !isNaN(b.x)){ controls.target.set(b.x, 10, b.y); camera.position.set(b.x+70, 90, b.y+90); }
+    }
+  }, 1500);
+}
+</script>
+</body>
+</html>
