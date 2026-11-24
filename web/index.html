@@ -511,11 +511,13 @@ const REAL_PHOTOS = {
         {src:'./realphotos/lake_pavilion.jpg',cap:'湖畔亭榭与樱花 · 官网图片'},
         {src:'./realphotos/waterfall.jpg',cap:'弘毅山瀑布近景 · 实景'},
         {src:'./realphotos/rockery.jpg',cap:'弘毅山瀑布远景 · 实景'}],
+  innovation:[{src:'./realphotos/dingxin_3d.png',cap:'鼎新楼A/B座 · 3D效果图（暂无实景照片，位置/造型为示意）'}],
   campus:[{src:'./realphotos/axis_front.jpg',cap:'校园中轴线航拍全景 · 官网图片'},
           {src:'./realphotos/campus_path.jpg',cap:'校园林荫步道 · 官网图片'}]
 };
 function photosFor(b){
   if(!b) return [];
+  if(b.kind==='innovation'||/鼎新|科创中心|文创/.test(b.name||'')) return REAL_PHOTOS.innovation;
   if(b.kind==='library'||b.id==='p07') return REAL_PHOTOS.library;
   if(b.kind==='canteen'||/食堂|餐厅/.test(b.name||'')) return REAL_PHOTOS.canteen;
   if(/书院|公寓|宿舍/.test(b.name||'')) return REAL_PHOTOS.campus; // 无可确认宿舍实景，不误挂教学楼
@@ -571,11 +573,18 @@ const SPOTS=[
   {id:'pZX', ic:'⚗️', name:'知行楼', sub:'综合实验楼', k:'b'},
   {id:'p30', ic:'🏟️', name:'体育训练馆', sub:'北部综合楼', k:'b'},
   {grp:'书院生活'},
-  {id:'pDXSY', ic:'🏠', name:'笃行书院·馨苑', sub:'西运动场东侧', k:'b'},
+  {id:'pDXSY', ic:'🏠', name:'笃行书院·馨苑1', sub:'西运动场东侧', k:'b'},
+  {id:'pDXSY2', ic:'🏠', name:'笃行书院·馨苑2', sub:'西运动场东侧', k:'b'},
+  {id:'pDXSY3', ic:'🏠', name:'笃行书院·馨苑3', sub:'西运动场东侧', k:'b'},
   {id:'pXINY', ic:'🏡', name:'新苑', sub:'学生公寓', k:'b'},
   {id:'pGX', ic:'🧰', name:'教职工活动中心', sub:'躬行楼', k:'b'},
   {id:'pSHOP2', ic:'🛍️', name:'第二商业街', sub:'生活服务街区', k:'b'},
   {id:'pSHOP1', ic:'🏪', name:'第一商业街', sub:'第一食堂旁', k:'b'},
+  {grp:'医疗 · 生活配套'},
+  {id:'pHOSP', ic:'🏥', name:'校医院', sub:'西运动场西北', k:'b'},
+  {id:'pLOGI', ic:'🏗️', name:'后勤服务楼', sub:'尚德街旁', k:'b'},
+  {id:'pKIND', ic:'🧒', name:'幼儿园', sub:'北区生活配套', k:'b'},
+  {id:'pBATH', ic:'🚿', name:'浴池', sub:'第二食堂北侧', k:'b'},
   {grp:'食堂餐饮'},
   {id:'p04', ic:'🍚', name:'第一食堂', sub:'教学楼附近', k:'b'},
   {id:'p17', ic:'🍜', name:'第二餐厅', sub:'笃行书院旁', k:'b'},

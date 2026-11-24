@@ -74,9 +74,11 @@ const PHOTOS=[
  // 校园全景
  {f:'axis_front.jpg',t:'校园中轴线全景',c:'校园全景',d:'南北中轴与图书馆，秋日航拍（画面带"财大十二时辰"字样）'},
  {f:'campus_path.jpg',t:'林荫步道',c:'校园全景',d:'春日林荫道与学生骑行，远处为校园雕塑'},
+ // 3D效果图（非实景，明确区分）：鼎新楼/大学生科创中心暂无实景照片，用模型渲染图示意
+ {f:'dingxin_3d.png',t:'鼎新楼·大学生科创中心（A/B座）',c:'3D效果图',d:'暂无实景照片，此为本系统3D模型渲染效果图；楼体造型与位置为示意，非实景、非测绘成果'},
 ];
 const PB='./realphotos/';
-const CATS=['全部','图书馆','教学楼','办公楼','生活服务','校门','湖景','校园全景'];
+const CATS=['全部','图书馆','教学楼','办公楼','生活服务','校门','湖景','校园全景','3D效果图'];
 const $=s=>document.querySelector(s);
 const f=$('#filters');
 f.innerHTML=CATS.map((c,i)=>`<button class="${i===0?'on':''}" data-c="${c}">${c}</button>`).join('');
